@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { decayActivation } from '../graph/activation.js';
+import { runArchivist, getArchivistStatus } from '../archivist/index.js';
 import nodeRoutes from './routes/nodes.js';
 import edgeRoutes from './routes/edges.js';
 import eventRoutes from './routes/events.js';
@@ -19,11 +19,20 @@ app.route('/', edgeRoutes);
 app.route('/', eventRoutes);
 app.route('/', searchRoutes);
 
-// Archivist endpoint — run decay
+// Archivist endpoints
 app.post('/archivist/run', (c) => {
   try {
-    const result = decayActivation();
+    const result = runArchivist();
     return c.json(result);
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+app.get('/archivist/status', (c) => {
+  try {
+    const status = getArchivistStatus();
+    return c.json(status);
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
   }
