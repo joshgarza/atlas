@@ -66,6 +66,15 @@ export function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_node_tags_tag ON node_tags(tag);
   `);
 
+  // Add processed_at column to events (for archivist consolidation tracking)
+  const hasProcessedAt = db.prepare(
+    "SELECT COUNT(*) as cnt FROM pragma_table_info('events') WHERE name = 'processed_at'"
+  ).get() as { cnt: number };
+
+  if (hasProcessedAt.cnt === 0) {
+    db.exec('ALTER TABLE events ADD COLUMN processed_at TEXT');
+  }
+
   // FTS5 virtual table — separate because CREATE VIRTUAL TABLE doesn't support IF NOT EXISTS cleanly
   const ftsExists = db.prepare(
     "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes_fts'"
