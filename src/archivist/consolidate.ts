@@ -1,7 +1,6 @@
 import { getDb } from '../db/connection.js';
 import { createEvent } from '../events.js';
 import { createNode, updateNode } from '../graph/nodes.js';
-import { createEdge } from '../graph/edges.js';
 import { searchNodes } from '../graph/query.js';
 import { bumpActivation } from '../graph/activation.js';
 import type { Event, NodeType, NodeGranularity } from '../types.js';
@@ -66,7 +65,6 @@ export function consolidate(): ConsolidateResult {
 
   for (const event of unprocessed) {
     const now = new Date().toISOString();
-    const metadata = event.metadata ? JSON.parse(event.metadata) : null;
 
     const payload = parseEventContent(event.content);
     if (!payload) {
@@ -102,14 +100,6 @@ export function consolidate(): ConsolidateResult {
       });
 
       bumpActivation(match.id);
-
-      // Create derived_from edge: new content derives from event
-      createEdge({
-        source_id: match.id,
-        target_id: match.id,
-        type: 'derived_from',
-        metadata: { event_id: event.id },
-      });
 
       nodesUpdated++;
 

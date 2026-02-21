@@ -46,8 +46,6 @@ export function runArchivist(): ArchivistRunResult {
   const completedAt = new Date().toISOString();
   const durationMs = Date.now() - startMs;
 
-  runCount++;
-
   const result: ArchivistRunResult = {
     consolidation,
     decay,
@@ -56,9 +54,11 @@ export function runArchivist(): ArchivistRunResult {
       completedAt,
       durationMs,
     },
-    runCount,
+    runCount: runCount + 1,
   };
 
+  // Only update state after both steps succeed
+  runCount++;
   lastRunResult = result;
   return result;
 }
