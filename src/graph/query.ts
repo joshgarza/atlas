@@ -25,6 +25,10 @@ function toNodeWithTags(row: Record<string, unknown>): NodeWithTags {
 export function searchNodes(query: string, limit = 20): NodeWithTags[] {
   const db = getDb();
 
+  // Quote the query to prevent FTS5 syntax errors from special characters
+  // (dashes, colons, slashes, etc. in titles/content)
+  const quoted = `"${query.replace(/"/g, '""')}"`;
+
   const rows = db
     .prepare(
       `SELECT nodes.* FROM nodes_fts
@@ -33,7 +37,7 @@ export function searchNodes(query: string, limit = 20): NodeWithTags[] {
        ORDER BY rank
        LIMIT ?`
     )
-    .all(query, limit) as Record<string, unknown>[];
+    .all(quoted, limit) as Record<string, unknown>[];
 
   return rows.map(toNodeWithTags);
 }

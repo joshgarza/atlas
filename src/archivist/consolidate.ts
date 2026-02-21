@@ -86,8 +86,13 @@ export function consolidate(): ConsolidateResult {
       continue;
     }
 
-    // Search for existing similar nodes by title
-    const existing = searchNodes(payload.title, 5);
+    // Search for existing similar nodes by title (FTS can still fail on edge cases)
+    let existing: ReturnType<typeof searchNodes> = [];
+    try {
+      existing = searchNodes(payload.title, 5);
+    } catch {
+      // FTS query failed — treat as no match, create a new node
+    }
     const match = existing.find(
       (n) => n.title.toLowerCase() === payload.title!.toLowerCase()
     );
