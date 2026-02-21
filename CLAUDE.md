@@ -118,7 +118,8 @@ GET    /search/related/:id  # Find related nodes (graph traversal)
 GET    /search/recent       # Recently accessed nodes
 
 # Archivist
-POST   /archivist/run       # Trigger activation decay manually
+POST   /archivist/run       # Run full archivist cycle (consolidate + decay)
+GET    /archivist/status     # Last run info, stats, unprocessed event count
 
 # Health
 GET    /health              # Health check
@@ -138,6 +139,14 @@ src/
     edges.ts              # Edge CRUD
     activation.ts         # Activation scoring + decay
     query.ts              # FTS search, graph traversal, recent nodes
+  archivist/
+    index.ts              # Orchestration — run cycle, track status
+    consolidate.ts        # Process events into graph nodes
+    reinforce.ts          # Targeted activation boost + propagation
+    attenuate.ts          # Targeted attenuation of superseded nodes
+  collectors/
+    obsidian.ts           # Obsidian vault reader + event transformer
+    run-obsidian.ts       # CLI entry point for Obsidian collector
   api/
     server.ts             # Hono HTTP server
     routes/
