@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
+import chokidar from 'chokidar';
 import type { CreateEventInput } from '../types.js';
 
 // --- Types ---
@@ -25,17 +26,27 @@ export interface ImportSummary {
 // --- Parsing ---
 
 /**
+ * Strip fenced code blocks and inline code spans from markdown body.
+ */
+function stripCodeBlocks(body: string): string {
+  // Remove fenced code blocks (``` ... ```)
+  let stripped = body.replace(/```[\s\S]*?```/g, '');
+  // Remove inline code spans (` ... `)
+  stripped = stripped.replace(/`[^`]+`/g, '');
+  return stripped;
+}
+
+/**
  * Extract inline #tags from markdown body.
- * Matches #word but not inside code blocks or frontmatter.
+ * Strips code blocks first to avoid matching tags inside code.
  * Excludes heading markers (lines starting with #).
  */
 function extractInlineTags(body: string): string[] {
+  const stripped = stripCodeBlocks(body);
   const tags = new Set<string>();
-  // Match #tag patterns — alphanumeric, hyphens, underscores, slashes (nested tags)
-  // Must be preceded by whitespace or start of line, not inside a wikilink
   const tagRegex = /(?:^|[\s,;(])#([a-zA-Z][\w\-/]*)/gm;
   let match: RegExpExecArray | null;
-  while ((match = tagRegex.exec(body)) !== null) {
+  while ((match = tagRegex.exec(stripped)) !== null) {
     tags.add(match[1]);
   }
   return [...tags];
@@ -141,7 +152,7 @@ function findMarkdownFiles(dir: string): string[] {
 
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
-    if (entry.name.startsWith('.') && SKIP_DIRS.has(entry.name)) continue;
+    if (entry.name.startsWith('.')) continue;
     if (SKIP_DIRS.has(entry.name)) continue;
 
     const fullPath = path.join(dir, entry.name);
@@ -219,85 +230,80 @@ export async function importVault(
 
 // --- File watcher ---
 
+/** Directories to ignore in the watcher (glob patterns for chokidar). */
+const WATCH_IGNORED = [
+  '**/.*',           // all hidden files/dirs
+  '**/node_modules',
+  '**/_templates',
+  '**/templates',
+];
+
 /**
  * Watch an Obsidian vault for file changes and create events in Atlas.
  *
- * Uses Node.js built-in fs.watch with recursive option.
- * Returns an AbortController that can be used to stop watching.
+ * Uses chokidar for reliable cross-platform recursive watching (fs.watch
+ * recursive option is not supported on Linux).
+ *
+ * Returns an object with a close() method to stop watching.
  */
 export function watchVault(
   vaultPath: string,
   atlasUrl: string,
-): AbortController {
+): { close: () => Promise<void> } {
   const resolvedVault = path.resolve(vaultPath);
   const eventsUrl = `${atlasUrl.replace(/\/$/, '')}/events`;
-  const controller = new AbortController();
-
-  // Debounce map: file path -> timeout handle
-  const pending = new Map<string, ReturnType<typeof setTimeout>>();
-  const DEBOUNCE_MS = 500;
 
   console.log(`Watching vault at ${resolvedVault} for changes...`);
 
-  const watcher = fs.watch(
-    resolvedVault,
-    { recursive: true, signal: controller.signal },
-    (_eventType, filename) => {
-      if (!filename) return;
-
-      // Only process .md files
-      if (!filename.endsWith('.md')) return;
-
-      // Skip excluded directories
-      const parts = filename.split(path.sep);
-      if (parts.some((p) => SKIP_DIRS.has(p))) return;
-
-      const fullPath = path.join(resolvedVault, filename);
-
-      // Debounce: editors often fire multiple events per save
-      const existing = pending.get(fullPath);
-      if (existing) clearTimeout(existing);
-
-      pending.set(
-        fullPath,
-        setTimeout(async () => {
-          pending.delete(fullPath);
-
-          // Check if file still exists (might have been deleted)
-          if (!fs.existsSync(fullPath)) {
-            console.log(`  File deleted: ${filename}`);
-            return;
-          }
-
-          try {
-            const note = parseNote(fullPath, resolvedVault);
-            const event = noteToEvent(note);
-
-            const response = await fetch(eventsUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(event),
-            });
-
-            if (!response.ok) {
-              const text = await response.text();
-              throw new Error(`HTTP ${response.status}: ${text}`);
-            }
-
-            console.log(`  Event created for: ${filename}`);
-          } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            console.error(`  Error processing ${filename}: ${message}`);
-          }
-        }, DEBOUNCE_MS),
-      );
+  const watcher = chokidar.watch('**/*.md', {
+    cwd: resolvedVault,
+    ignored: WATCH_IGNORED,
+    ignoreInitial: true,
+    awaitWriteFinish: {
+      stabilityThreshold: 500,
+      pollInterval: 100,
     },
-  );
-
-  // Handle watcher errors gracefully
-  watcher.on('error', (err) => {
-    console.error(`Watcher error: ${err.message}`);
   });
 
-  return controller;
+  async function handleChange(relativePath: string): Promise<void> {
+    const fullPath = path.join(resolvedVault, relativePath);
+
+    if (!fs.existsSync(fullPath)) {
+      console.log(`  File deleted: ${relativePath}`);
+      return;
+    }
+
+    try {
+      const note = parseNote(fullPath, resolvedVault);
+      const event = noteToEvent(note);
+
+      const response = await fetch(eventsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(event),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`HTTP ${response.status}: ${text}`);
+      }
+
+      console.log(`  Event created for: ${relativePath}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`  Error processing ${relativePath}: ${message}`);
+    }
+  }
+
+  watcher.on('change', handleChange);
+  watcher.on('add', handleChange);
+
+  watcher.on('error', (err) => {
+    console.error(`Watcher error: ${err.message}`);
+    watcher.close().catch(() => {});
+  });
+
+  return {
+    close: () => watcher.close(),
+  };
 }

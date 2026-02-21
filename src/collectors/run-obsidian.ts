@@ -50,13 +50,12 @@ function main(): void {
       if (watchMode) {
         console.log('');
         console.log('Starting file watcher (Ctrl+C to stop)...');
-        const controller = watchVault(vaultPath, atlasUrl);
+        const watcher = watchVault(vaultPath, atlasUrl);
 
         // Graceful shutdown on SIGINT/SIGTERM
         const shutdown = (): void => {
           console.log('\nShutting down watcher...');
-          controller.abort();
-          process.exit(0);
+          watcher.close().then(() => process.exit(0));
         };
         process.on('SIGINT', shutdown);
         process.on('SIGTERM', shutdown);
