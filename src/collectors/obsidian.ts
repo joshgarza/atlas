@@ -298,8 +298,9 @@ export function watchVault(
   watcher.on('change', handleChange);
   watcher.on('add', handleChange);
 
-  watcher.on('error', (err) => {
-    console.error(`Watcher error: ${err.message}`);
+  watcher.on('error', (err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Watcher error: ${message}`);
     watcher.close().catch(() => {});
   });
 

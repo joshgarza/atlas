@@ -22,11 +22,14 @@ interface EventPayload {
 }
 
 /** Parse event content as JSON. Returns null if invalid or missing required fields. */
-function parseEventContent(content: string): EventPayload | null {
+function parseEventContent(raw: string): EventPayload | null {
   try {
-    const parsed = JSON.parse(content) as Record<string, unknown>;
-    if (typeof parsed.title !== 'string' || typeof parsed.content !== 'string') return null;
-    return parsed as unknown as EventPayload;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof parsed.title !== 'string') return null;
+    // Accept "content" or "body" (Obsidian collector uses "body")
+    const text = parsed.content ?? parsed.body;
+    if (typeof text !== 'string') return null;
+    return { ...parsed, content: text } as unknown as EventPayload;
   } catch {
     return null;
   }
