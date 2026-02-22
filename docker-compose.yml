@@ -14,9 +14,9 @@ services:
 
   obsidian-collector:
     build: .
-    command: ["npx", "tsx", "src/collectors/run-obsidian.ts", "--watch"]
+    command: ["node", "--import", "tsx", "src/collectors/run-obsidian.ts", "--watch"]
     volumes:
-      - ${VAULT_PATH:-./.vault-placeholder}:/vault:ro
+      - ${VAULT_PATH:?Set VAULT_PATH to your Obsidian vault directory}:/vault:ro
     environment:
       - VAULT_PATH=/vault
       - ATLAS_URL=http://atlas:3001

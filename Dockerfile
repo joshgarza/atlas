@@ -12,4 +12,4 @@ COPY src/ ./src/
 
 EXPOSE 3001
 
-CMD ["npx", "tsx", "src/api/server.ts"]
+CMD ["node", "--import", "tsx", "src/api/server.ts"]
