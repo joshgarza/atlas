@@ -34,6 +34,12 @@ Atlas is a personal memory service — the foundational layer of a personal assi
 - **NEVER create merge commits on `main`** — a pre-merge-commit hook will reject it
 - If the Claude Code hook blocks your Edit/Write, you are on the `main` worktree — switch to a feature branch worktree
 
+### Shell Commands
+- **NEVER chain shell commands** with `&&`, `||`, or `;` — run each command as a separate Bash tool call. Chained commands bypass the permission system and make it harder to add granular permissions over time.
+
+### PR Workflow
+- **NEVER auto-merge PRs** — always run the full review-learn-fix cycle and wait for explicit user approval before merging
+
 ### Git Worktree Workflow
 
 This repo uses a **bare repo + worktree** layout.
@@ -75,7 +81,8 @@ From the hub directory (`atlas/`):
    git push -u origin <branch>
    gh pr create
    ```
-4. After PR is approved and merged on GitHub:
+4. **NEVER auto-merge PRs** — always run the full review-learn-fix cycle before merging. Wait for user approval to merge.
+5. After PR is approved and merged on GitHub:
    ```bash
    cd /home/josh/coding/claude/atlas/main && git pull origin main
    cd .. && ./remove-worktree.sh <name>
