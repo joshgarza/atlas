@@ -1,0 +1,29 @@
+services:
+  atlas:
+    build: .
+    ports:
+      - "3001:3001"
+    volumes:
+      - atlas-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  obsidian-collector:
+    build: .
+    command: ["npx", "tsx", "src/collectors/run-obsidian.ts", "--watch"]
+    volumes:
+      - ${VAULT_PATH:-./.vault-placeholder}:/vault:ro
+    environment:
+      - VAULT_PATH=/vault
+      - ATLAS_URL=http://atlas:3001
+    depends_on:
+      atlas:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  atlas-data:
