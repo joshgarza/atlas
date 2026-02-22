@@ -1,3 +1,5 @@
+name: atlas
+
 services:
   atlas:
     build: .
