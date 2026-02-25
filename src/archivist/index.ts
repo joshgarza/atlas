@@ -2,11 +2,15 @@ import { consolidate } from './consolidate.js';
 import type { ConsolidateResult } from './consolidate.js';
 import { decayActivation } from '../graph/activation.js';
 import { getDb } from '../db/connection.js';
+import { createClaudeCodeConfig } from './claude.js';
+import type { ClaudeCodeConfig } from './claude.js';
 
 export { consolidate } from './consolidate.js';
 export { reinforce } from './reinforce.js';
 export { attenuate } from './attenuate.js';
 export { startScheduler, stopScheduler, updateScheduler, getSchedulerStatus } from './scheduler.js';
+export { createClaudeCodeConfig, queryClaudeCode } from './claude.js';
+export type { ClaudeCodeConfig, ClaudeCodeResult } from './claude.js';
 
 export interface ArchivistRunResult {
   consolidation: ConsolidateResult;
@@ -23,11 +27,21 @@ export interface ArchivistStatus {
   lastRun: ArchivistRunResult | null;
   runCount: number;
   unprocessedEventCount: number;
+  claudeCode: {
+    model: string;
+    allowedTools: string[];
+    maxTurns: number;
+    timeoutMs: number;
+    atlasBaseUrl: string;
+  };
 }
 
 // In-memory tracking
 let lastRunResult: ArchivistRunResult | null = null;
 let runCount = 0;
+
+// Claude Code config (initialized once, readable via status)
+const claudeCodeConfig = createClaudeCodeConfig();
 
 /**
  * Run a full archivist cycle:
@@ -80,5 +94,12 @@ export function getArchivistStatus(): ArchivistStatus {
     lastRun: lastRunResult,
     runCount,
     unprocessedEventCount: row.count,
+    claudeCode: {
+      model: claudeCodeConfig.model,
+      allowedTools: claudeCodeConfig.allowedTools,
+      maxTurns: claudeCodeConfig.maxTurns,
+      timeoutMs: claudeCodeConfig.timeoutMs,
+      atlasBaseUrl: claudeCodeConfig.atlasBaseUrl,
+    },
   };
 }
