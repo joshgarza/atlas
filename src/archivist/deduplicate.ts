@@ -117,105 +117,109 @@ Important:
 function mergeNodes(keepId: string, removeId: string, reason: string): void {
   const db = getDb();
 
-  const keepRow = db
-    .prepare('SELECT * FROM nodes WHERE id = ?')
-    .get(keepId) as Record<string, unknown> | undefined;
-  const removeRow = db
-    .prepare('SELECT * FROM nodes WHERE id = ?')
-    .get(removeId) as Record<string, unknown> | undefined;
+  const doMerge = db.transaction(() => {
+    const keepRow = db
+      .prepare('SELECT * FROM nodes WHERE id = ?')
+      .get(keepId) as Record<string, unknown> | undefined;
+    const removeRow = db
+      .prepare('SELECT * FROM nodes WHERE id = ?')
+      .get(removeId) as Record<string, unknown> | undefined;
 
-  if (!keepRow || !removeRow) {
-    throw new Error(
-      `Cannot merge: node not found (keep=${keepId}, remove=${removeId})`,
-    );
-  }
+    if (!keepRow || !removeRow) {
+      throw new Error(
+        `Cannot merge: node not found (keep=${keepId}, remove=${removeId})`,
+      );
+    }
 
-  // Merge tags
-  const keepTags = db
-    .prepare('SELECT tag FROM node_tags WHERE node_id = ?')
-    .all(keepId) as { tag: string }[];
-  const removeTags = db
-    .prepare('SELECT tag FROM node_tags WHERE node_id = ?')
-    .all(removeId) as { tag: string }[];
-  const mergedTags = [
-    ...new Set([
-      ...keepTags.map((t) => t.tag),
-      ...removeTags.map((t) => t.tag),
-    ]),
-  ];
+    // Merge tags
+    const keepTags = db
+      .prepare('SELECT tag FROM node_tags WHERE node_id = ?')
+      .all(keepId) as { tag: string }[];
+    const removeTags = db
+      .prepare('SELECT tag FROM node_tags WHERE node_id = ?')
+      .all(removeId) as { tag: string }[];
+    const mergedTags = [
+      ...new Set([
+        ...keepTags.map((t) => t.tag),
+        ...removeTags.map((t) => t.tag),
+      ]),
+    ];
 
-  // Merge content
-  const mergedContent = `${keepRow.content as string}\n\n---\n\n${removeRow.content as string}`;
+    // Merge content
+    const mergedContent = `${keepRow.content as string}\n\n---\n\n${removeRow.content as string}`;
 
-  // Merge metadata
-  const keepMeta = keepRow.metadata
-    ? JSON.parse(keepRow.metadata as string)
-    : {};
-  const removeMeta = removeRow.metadata
-    ? JSON.parse(removeRow.metadata as string)
-    : {};
-  const mergedMeta = {
-    ...keepMeta,
-    merged_from: [...(keepMeta.merged_from ?? []), removeId],
-    merge_sources_metadata: {
-      ...(keepMeta.merge_sources_metadata ?? {}),
-      [removeId]: removeMeta,
-    },
-  };
+    // Merge metadata
+    const keepMeta = keepRow.metadata
+      ? JSON.parse(keepRow.metadata as string)
+      : {};
+    const removeMeta = removeRow.metadata
+      ? JSON.parse(removeRow.metadata as string)
+      : {};
+    const mergedMeta = {
+      ...keepMeta,
+      merged_from: [...(keepMeta.merged_from ?? []), removeId],
+      merge_sources_metadata: {
+        ...(keepMeta.merge_sources_metadata ?? {}),
+        [removeId]: removeMeta,
+      },
+    };
 
-  // Update the keep node with merged content
-  updateNode(keepId, {
-    content: mergedContent,
-    tags: mergedTags,
-    metadata: mergedMeta,
-    change_reason: `Merged duplicate node ${removeId}: ${reason}`,
-    changed_by: 'archivist/deduplicate',
-  });
-
-  // Redirect edges from removeNode to keepNode
-  const removeEdges = getEdgesByNode(removeId);
-  const keepEdges = getEdgesByNode(keepId);
-
-  for (const edge of removeEdges) {
-    if (edge.type === 'supersedes') continue;
-
-    const otherNodeId =
-      edge.source_id === removeId ? edge.target_id : edge.source_id;
-    if (otherNodeId === keepId) continue;
-
-    // Check if keepNode already has a similar edge
-    const alreadyExists = keepEdges.some((ke) => {
-      const keepOtherId =
-        ke.source_id === keepId ? ke.target_id : ke.source_id;
-      return keepOtherId === otherNodeId && ke.type === edge.type;
+    // Update the keep node with merged content
+    updateNode(keepId, {
+      content: mergedContent,
+      tags: mergedTags,
+      metadata: mergedMeta,
+      change_reason: `Merged duplicate node ${removeId}: ${reason}`,
+      changed_by: 'archivist/deduplicate',
     });
 
-    if (!alreadyExists) {
-      const isSource = edge.source_id === removeId;
-      createEdge({
-        source_id: isSource ? keepId : otherNodeId,
-        target_id: isSource ? otherNodeId : keepId,
-        type: edge.type,
-        weight: edge.weight,
-        metadata: { ...(edge.metadata ?? {}), redirected_from: removeId },
+    // Redirect edges from removeNode to keepNode
+    const removeEdges = getEdgesByNode(removeId);
+    const keepEdges = getEdgesByNode(keepId);
+
+    for (const edge of removeEdges) {
+      if (edge.type === 'supersedes') continue;
+
+      const otherNodeId =
+        edge.source_id === removeId ? edge.target_id : edge.source_id;
+      if (otherNodeId === keepId) continue;
+
+      // Check if keepNode already has a similar edge
+      const alreadyExists = keepEdges.some((ke) => {
+        const keepOtherId =
+          ke.source_id === keepId ? ke.target_id : ke.source_id;
+        return keepOtherId === otherNodeId && ke.type === edge.type;
       });
+
+      if (!alreadyExists) {
+        const isSource = edge.source_id === removeId;
+        createEdge({
+          source_id: isSource ? keepId : otherNodeId,
+          target_id: isSource ? otherNodeId : keepId,
+          type: edge.type,
+          weight: edge.weight,
+          metadata: { ...(edge.metadata ?? {}), redirected_from: removeId },
+        });
+      }
     }
-  }
 
-  // Attenuate the removed node (marks superseded, creates supersedes edge)
-  attenuate(removeId, reason, keepId);
+    // Attenuate the removed node (marks superseded, creates supersedes edge)
+    attenuate(removeId, reason, keepId);
 
-  // Log the merge action
-  createEvent({
-    type: 'archivist_action',
-    source: 'archivist/deduplicate',
-    content: JSON.stringify({
-      action: 'merge',
-      keep_node_id: keepId,
-      removed_node_id: removeId,
-      reason,
-    }),
+    // Log the merge action
+    createEvent({
+      type: 'archivist_action',
+      source: 'archivist/deduplicate',
+      content: JSON.stringify({
+        action: 'merge',
+        keep_node_id: keepId,
+        removed_node_id: removeId,
+        reason,
+      }),
+    });
   });
+
+  doMerge();
 }
 
 /**
@@ -251,14 +255,24 @@ export async function runDeduplication(): Promise<DeduplicationResult> {
     return { candidatesFound: 0, mergesPerformed: 0, mergedPairs: [], skipped: false };
   }
 
-  // Send to Claude in batches to find duplicates
+  // Send to Claude in overlapping batches to find duplicates.
+  // Overlap ensures nodes near batch boundaries are compared together.
   const BATCH_SIZE = 50;
+  const STRIDE = Math.floor(BATCH_SIZE / 2);
   const allPairs: DuplicatePair[] = [];
+  const seenPairKeys = new Set<string>();
 
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+  for (let i = 0; i < rows.length; i += STRIDE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
+    if (batch.length < 2) break;
     const pairs = await findDuplicates(batch);
-    allPairs.push(...pairs);
+    for (const pair of pairs) {
+      const key = [pair.keepId, pair.removeId].sort().join(':');
+      if (!seenPairKeys.has(key)) {
+        seenPairKeys.add(key);
+        allPairs.push(pair);
+      }
+    }
   }
 
   // Validate that all referenced node IDs exist in our active set
