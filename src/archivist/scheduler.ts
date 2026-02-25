@@ -1,5 +1,5 @@
 import { consolidate } from './consolidate.js';
-import { runArchivist } from './index.js';
+import { decayActivation } from '../graph/activation.js';
 
 const DEFAULT_CONSOLIDATE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const DEFAULT_DECAY_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -48,10 +48,10 @@ function runConsolidate(): void {
 
 function runDecay(): void {
   try {
-    runArchivist();
+    decayActivation();
     lastDecayAt = new Date().toISOString();
     decayRunCount++;
-    console.log(`[scheduler] full archivist cycle (with decay) complete at ${lastDecayAt}`);
+    console.log(`[scheduler] decay complete at ${lastDecayAt}`);
   } catch (err) {
     console.error('[scheduler] decay cycle error:', (err as Error).message);
   }
@@ -60,7 +60,7 @@ function runDecay(): void {
 /**
  * Start the archivist scheduler with two timers:
  * - Consolidation runs frequently (default: every 30 minutes)
- * - Full cycle with decay runs less often (default: every 24 hours)
+ * - Decay runs less often (default: every 24 hours)
  */
 export function startScheduler(overrides?: Partial<SchedulerConfig>): void {
   if (consolidateTimer || decayTimer) {
