@@ -24,14 +24,10 @@ let consolidateTimer: ReturnType<typeof setInterval> | null = null;
 let decayTimer: ReturnType<typeof setInterval> | null = null;
 
 let config: SchedulerConfig = {
-  consolidateIntervalMs: parseInt(
-    process.env.ARCHIVIST_CONSOLIDATE_INTERVAL_MS ?? String(DEFAULT_CONSOLIDATE_INTERVAL_MS),
-    10
-  ),
-  decayIntervalMs: parseInt(
-    process.env.ARCHIVIST_DECAY_INTERVAL_MS ?? String(DEFAULT_DECAY_INTERVAL_MS),
-    10
-  ),
+  consolidateIntervalMs:
+    parseInt(process.env.ARCHIVIST_CONSOLIDATE_INTERVAL_MS ?? '', 10) || DEFAULT_CONSOLIDATE_INTERVAL_MS,
+  decayIntervalMs:
+    parseInt(process.env.ARCHIVIST_DECAY_INTERVAL_MS ?? '', 10) || DEFAULT_DECAY_INTERVAL_MS,
 };
 
 let lastConsolidateAt: string | null = null;
