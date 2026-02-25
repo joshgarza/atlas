@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import { searchNodes, getRelatedNodes, getRecentNodes } from '../../graph/query.js';
+import { searchNodes, getRelatedNodes, getRecentNodes, advancedSearch } from '../../graph/query.js';
+import type { SearchFilters, NodeType, NodeStatus, SortField, SortOrder } from '../../types.js';
 
 const app = new Hono();
 
@@ -15,6 +16,60 @@ app.get('/search', (c) => {
     const limit = limitStr ? parseInt(limitStr, 10) : undefined;
 
     const nodes = searchNodes(q, limit);
+    return c.json(nodes);
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+// Advanced search with filtering + sorting
+app.get('/search/advanced', (c) => {
+  try {
+    const filters: SearchFilters = {};
+
+    const q = c.req.query('q');
+    if (q) filters.q = q;
+
+    const type = c.req.query('type');
+    if (type) filters.type = type as NodeType;
+
+    const status = c.req.query('status');
+    if (status) filters.status = status as NodeStatus;
+
+    const activationMin = c.req.query('activation_min');
+    if (activationMin) filters.activation_min = parseFloat(activationMin);
+
+    const activationMax = c.req.query('activation_max');
+    if (activationMax) filters.activation_max = parseFloat(activationMax);
+
+    const createdAfter = c.req.query('created_after');
+    if (createdAfter) filters.created_after = createdAfter;
+
+    const createdBefore = c.req.query('created_before');
+    if (createdBefore) filters.created_before = createdBefore;
+
+    const updatedAfter = c.req.query('updated_after');
+    if (updatedAfter) filters.updated_after = updatedAfter;
+
+    const updatedBefore = c.req.query('updated_before');
+    if (updatedBefore) filters.updated_before = updatedBefore;
+
+    const tags = c.req.query('tags');
+    if (tags) filters.tags = tags.split(',');
+
+    const sort = c.req.query('sort');
+    if (sort) filters.sort = sort as SortField;
+
+    const order = c.req.query('order');
+    if (order) filters.order = order as SortOrder;
+
+    const limitStr = c.req.query('limit');
+    if (limitStr) filters.limit = parseInt(limitStr, 10);
+
+    const offsetStr = c.req.query('offset');
+    if (offsetStr) filters.offset = parseInt(offsetStr, 10);
+
+    const nodes = advancedSearch(filters);
     return c.json(nodes);
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);

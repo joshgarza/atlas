@@ -5,6 +5,7 @@ import eventRoutes from './routes/events.js';
 import searchRoutes from './routes/search.js';
 import archivistRoutes from './routes/archivist.js';
 import uiRoutes from './routes/ui.js';
+import viewRoutes from './routes/views.js';
 
 const app = new Hono();
 
@@ -20,5 +21,6 @@ app.route('/', eventRoutes);
 app.route('/', searchRoutes);
 app.route('/', archivistRoutes);
 app.route('/', uiRoutes);
+app.route('/', viewRoutes);
 
 export default app;

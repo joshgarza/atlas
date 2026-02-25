@@ -75,3 +75,48 @@ export type UpdateNodeInput = z.infer<typeof UpdateNodeInputSchema>;
 export type CreateEdgeInput = z.infer<typeof CreateEdgeInputSchema>;
 export type UpdateEdgeInput = z.infer<typeof UpdateEdgeInputSchema>;
 export type CreateEventInput = z.infer<typeof CreateEventInputSchema>;
+
+// Advanced search + filtering
+
+export type SortField = 'activation' | 'recency' | 'created_at';
+export type SortOrder = 'asc' | 'desc';
+
+export interface SearchFilters {
+  q?: string;
+  type?: NodeType;
+  status?: NodeStatus;
+  activation_min?: number;
+  activation_max?: number;
+  created_after?: string;
+  created_before?: string;
+  updated_after?: string;
+  updated_before?: string;
+  tags?: string[];
+  sort?: SortField;
+  order?: SortOrder;
+  limit?: number;
+  offset?: number;
+}
+
+// Saved views
+
+export interface SavedView {
+  id: string;
+  name: string;
+  description: string | null;
+  filters: SearchFilters;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateSavedViewInput {
+  name: string;
+  description?: string;
+  filters: SearchFilters;
+}
+
+export interface UpdateSavedViewInput {
+  name?: string;
+  description?: string;
+  filters?: SearchFilters;
+}
