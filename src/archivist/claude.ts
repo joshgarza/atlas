@@ -110,9 +110,6 @@ export async function queryClaudeCode(
   // Permission boundaries: restrict to only the specified tools
   if (config.allowedTools.length > 0) {
     args.push('--allowedTools', config.allowedTools.join(','));
-  } else {
-    // No tools — single turn pure reasoning
-    args.push('--max-turns', '1');
   }
 
   let stdout: string;
