@@ -67,6 +67,46 @@ POST   /archivist/run          Trigger activation decay
 GET    /health                 Health check
 ```
 
+## Obsidian Collector (Windows)
+
+The Obsidian collector runs natively on Windows (not in Docker/WSL2) so that file-watching works reliably against the Windows filesystem.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) installed on Windows
+- Atlas server running and accessible (default: `http://localhost:3001`)
+
+### One-time batch import
+
+```powershell
+npx tsx src/collectors/run-obsidian.ts
+```
+
+### Batch import + watch for changes
+
+```powershell
+npx tsx src/collectors/run-obsidian.ts --watch
+```
+
+### Environment variables
+
+| Variable     | Default                                                         | Description              |
+|--------------|-----------------------------------------------------------------|--------------------------|
+| `VAULT_PATH` | `C:\Users\josh\OneDrive\Documents\Obsidian\Obsidian Vault`     | Path to Obsidian vault   |
+| `ATLAS_URL`  | `http://localhost:3001`                                         | Atlas API base URL       |
+
+### Running on a schedule (Task Scheduler)
+
+To run an import automatically:
+
+1. Open **Task Scheduler** (`taskschd.msc`)
+2. Create a new task with a trigger (e.g. daily, or at logon)
+3. Set the action to **Start a program**:
+   - Program: `node`
+   - Arguments: `--import tsx src/collectors/run-obsidian.ts`
+   - Start in: the Atlas repo directory
+4. For continuous watching, use the `--watch` flag and set the task to run at logon with "Run whether user is logged on or not"
+
 ## Development
 
 This repo uses a **bare repo + worktree** workflow. See [CLAUDE.md](CLAUDE.md) for the full development guide.
