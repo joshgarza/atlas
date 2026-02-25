@@ -1,10 +1,24 @@
 // Core type definitions for Atlas
 
-export type NodeType = 'concept' | 'entity' | 'preference' | 'goal' | 'habit' | 'observation';
-export type NodeGranularity = 'broad' | 'standard' | 'detailed';
-export type NodeStatus = 'active' | 'superseded' | 'deprecated';
-export type EdgeType = 'supports' | 'contradicts' | 'derived_from' | 'related_to' | 'supersedes' | 'part_of';
-export type EventType = 'observation' | 'query' | 'mutation' | 'archivist_action';
+import type { z } from 'zod';
+import type {
+  NodeTypeSchema,
+  NodeGranularitySchema,
+  NodeStatusSchema,
+  EdgeTypeSchema,
+  EventTypeSchema,
+  CreateNodeInputSchema,
+  UpdateNodeInputSchema,
+  CreateEdgeInputSchema,
+  CreateEventInputSchema,
+} from './api/schemas.js';
+
+// Enum types derived from zod schemas
+export type NodeType = z.infer<typeof NodeTypeSchema>;
+export type NodeGranularity = z.infer<typeof NodeGranularitySchema>;
+export type NodeStatus = z.infer<typeof NodeStatusSchema>;
+export type EdgeType = z.infer<typeof EdgeTypeSchema>;
+export type EventType = z.infer<typeof EventTypeSchema>;
 
 export interface Node {
   id: string;
@@ -53,41 +67,8 @@ export interface Event {
   created_at: string;
 }
 
-// Input types for creating/updating
-
-export interface CreateNodeInput {
-  type: NodeType;
-  title: string;
-  content: string;
-  granularity: NodeGranularity;
-  tags?: string[];
-  metadata?: Record<string, unknown>;
-}
-
-export interface UpdateNodeInput {
-  title?: string;
-  content?: string;
-  granularity?: NodeGranularity;
-  type?: NodeType;
-  status?: NodeStatus;
-  superseded_by?: string;
-  change_reason?: string;
-  changed_by?: string;
-  tags?: string[];
-  metadata?: Record<string, unknown>;
-}
-
-export interface CreateEdgeInput {
-  source_id: string;
-  target_id: string;
-  type: EdgeType;
-  weight?: number;
-  metadata?: Record<string, unknown>;
-}
-
-export interface CreateEventInput {
-  type: EventType;
-  source: string;
-  content: string;
-  metadata?: Record<string, unknown>;
-}
+// Input types derived from zod schemas
+export type CreateNodeInput = z.infer<typeof CreateNodeInputSchema>;
+export type UpdateNodeInput = z.infer<typeof UpdateNodeInputSchema>;
+export type CreateEdgeInput = z.infer<typeof CreateEdgeInputSchema>;
+export type CreateEventInput = z.infer<typeof CreateEventInputSchema>;

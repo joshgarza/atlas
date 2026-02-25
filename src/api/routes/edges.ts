@@ -1,19 +1,17 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import { createEdge } from '../../graph/edges.js';
-import type { CreateEdgeInput } from '../../types.js';
+import { CreateEdgeInputSchema, validationHook } from '../schemas.js';
 
 const app = new Hono();
 
 // Create an edge
-app.post('/edges', async (c) => {
+app.post('/edges', zValidator('json', CreateEdgeInputSchema, validationHook), async (c) => {
   try {
-    const body = await c.req.json<CreateEdgeInput>();
+    const body = c.req.valid('json');
     const edge = createEdge(body);
     return c.json(edge, 201);
   } catch (err) {
-    if (err instanceof SyntaxError) {
-      return c.json({ error: 'Invalid JSON body' }, 400);
-    }
     return c.json({ error: (err as Error).message }, 500);
   }
 });

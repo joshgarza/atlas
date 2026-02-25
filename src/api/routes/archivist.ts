@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import { runArchivist, getArchivistStatus, runDeduplication } from '../../archivist/index.js';
-import { stopScheduler, updateScheduler, getSchedulerStatus, MIN_INTERVAL_MS } from '../../archivist/scheduler.js';
+import { stopScheduler, updateScheduler, getSchedulerStatus } from '../../archivist/scheduler.js';
+import { UpdateScheduleInputSchema, validationHook } from '../schemas.js';
 
 const app = new Hono();
 
@@ -36,20 +38,14 @@ app.get('/archivist/status', (c) => {
 });
 
 // Update schedule intervals
-app.put('/archivist/schedule', async (c) => {
+app.put('/archivist/schedule', zValidator('json', UpdateScheduleInputSchema, validationHook), async (c) => {
   try {
-    const body = await c.req.json();
+    const body = c.req.valid('json');
     const overrides: Record<string, number> = {};
-    if (typeof body.consolidateIntervalMs === 'number') {
-      if (body.consolidateIntervalMs < MIN_INTERVAL_MS) {
-        return c.json({ error: `consolidateIntervalMs must be >= ${MIN_INTERVAL_MS}` }, 400);
-      }
+    if (body.consolidateIntervalMs !== undefined) {
       overrides.consolidateIntervalMs = body.consolidateIntervalMs;
     }
-    if (typeof body.decayIntervalMs === 'number') {
-      if (body.decayIntervalMs < MIN_INTERVAL_MS) {
-        return c.json({ error: `decayIntervalMs must be >= ${MIN_INTERVAL_MS}` }, 400);
-      }
+    if (body.decayIntervalMs !== undefined) {
       overrides.decayIntervalMs = body.decayIntervalMs;
     }
     updateScheduler(overrides);
