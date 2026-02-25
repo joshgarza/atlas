@@ -3,6 +3,7 @@ import { runArchivist } from './index.js';
 
 const DEFAULT_CONSOLIDATE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const DEFAULT_DECAY_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const MIN_INTERVAL_MS = 60_000; // 1 minute floor — guards all input paths
 
 export interface SchedulerConfig {
   consolidateIntervalMs: number;
@@ -73,6 +74,10 @@ export function startScheduler(overrides?: Partial<SchedulerConfig>): void {
   if (overrides) {
     config = { ...config, ...overrides };
   }
+
+  // Clamp intervals at consumption point — guards env vars, API, and direct calls
+  config.consolidateIntervalMs = Math.max(MIN_INTERVAL_MS, config.consolidateIntervalMs);
+  config.decayIntervalMs = Math.max(MIN_INTERVAL_MS, config.decayIntervalMs);
 
   consolidateTimer = setInterval(runConsolidate, config.consolidateIntervalMs);
   decayTimer = setInterval(runDecay, config.decayIntervalMs);

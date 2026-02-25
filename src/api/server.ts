@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { runArchivist, getArchivistStatus } from '../archivist/index.js';
-import { startScheduler, stopScheduler, updateScheduler, getSchedulerStatus } from '../archivist/scheduler.js';
+import { startScheduler, stopScheduler, updateScheduler, getSchedulerStatus, MIN_INTERVAL_MS } from '../archivist/scheduler.js';
 import nodeRoutes from './routes/nodes.js';
 import edgeRoutes from './routes/edges.js';
 import eventRoutes from './routes/events.js';
@@ -42,7 +42,6 @@ app.get('/archivist/status', (c) => {
 
 app.put('/archivist/schedule', async (c) => {
   try {
-    const MIN_INTERVAL_MS = 60_000; // 1 minute floor
     const body = await c.req.json();
     const overrides: Record<string, number> = {};
     if (typeof body.consolidateIntervalMs === 'number') {
