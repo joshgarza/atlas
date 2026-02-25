@@ -73,7 +73,8 @@ export function parseNote(absolutePath: string, vaultRoot: string): ParsedNote {
   const raw = fs.readFileSync(absolutePath, 'utf-8');
   const { data: frontmatter, content: body } = matter(raw);
 
-  const relativePath = path.relative(vaultRoot, absolutePath);
+  // Normalize to forward slashes for consistent storage across platforms
+  const relativePath = path.relative(vaultRoot, absolutePath).replace(/\\/g, '/');
   const title = path.basename(absolutePath, '.md');
   const stats = fs.statSync(absolutePath);
 

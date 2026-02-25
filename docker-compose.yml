@@ -14,18 +14,5 @@ services:
       timeout: 5s
       retries: 3
 
-  obsidian-collector:
-    build: .
-    command: ["node", "--import", "tsx", "src/collectors/run-obsidian.ts", "--watch"]
-    volumes:
-      - ${VAULT_PATH:?Set VAULT_PATH to your Obsidian vault directory}:/vault:ro
-    environment:
-      - VAULT_PATH=/vault
-      - ATLAS_URL=http://atlas:3001
-    depends_on:
-      atlas:
-        condition: service_healthy
-    restart: unless-stopped
-
 volumes:
   atlas-data:

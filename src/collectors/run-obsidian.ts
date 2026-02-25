@@ -14,8 +14,9 @@
 
 import { importVault, watchVault } from './obsidian.js';
 
-const DEFAULT_VAULT_PATH =
-  '/mnt/c/Users/josh/OneDrive/Documents/Obsidian/Obsidian Vault';
+const DEFAULT_VAULT_PATH = process.platform === 'win32'
+  ? 'C:\\Users\\josh\\OneDrive\\Documents\\Obsidian\\Obsidian Vault'
+  : '/mnt/c/Users/josh/OneDrive/Documents/Obsidian/Obsidian Vault';
 const DEFAULT_ATLAS_URL = 'http://localhost:3001';
 
 function main(): void {
