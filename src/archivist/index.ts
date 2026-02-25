@@ -34,12 +34,12 @@ let runCount = 0;
  * 1. Consolidate unprocessed events into graph nodes
  * 2. Run activation decay sweep
  */
-export function runArchivist(): ArchivistRunResult {
+export async function runArchivist(): Promise<ArchivistRunResult> {
   const startedAt = new Date().toISOString();
   const startMs = Date.now();
 
-  // Step 1: Consolidate new events
-  const consolidation = consolidate();
+  // Step 1: Consolidate new events (async for LLM calls)
+  const consolidation = await consolidate();
 
   // Step 2: Decay activation scores
   const decay = decayActivation();

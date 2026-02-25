@@ -35,9 +35,9 @@ let lastDecayAt: string | null = null;
 let consolidateRunCount = 0;
 let decayRunCount = 0;
 
-function runConsolidate(): void {
+async function runConsolidate(): Promise<void> {
   try {
-    consolidate();
+    await consolidate();
     lastConsolidateAt = new Date().toISOString();
     consolidateRunCount++;
     console.log(`[scheduler] consolidation complete at ${lastConsolidateAt}`);
@@ -46,7 +46,7 @@ function runConsolidate(): void {
   }
 }
 
-function runDecay(): void {
+async function runDecay(): Promise<void> {
   try {
     decayActivation();
     lastDecayAt = new Date().toISOString();
@@ -75,8 +75,8 @@ export function startScheduler(overrides?: Partial<SchedulerConfig>): void {
   config.consolidateIntervalMs = Math.max(MIN_INTERVAL_MS, config.consolidateIntervalMs);
   config.decayIntervalMs = Math.max(MIN_INTERVAL_MS, config.decayIntervalMs);
 
-  consolidateTimer = setInterval(runConsolidate, config.consolidateIntervalMs);
-  decayTimer = setInterval(runDecay, config.decayIntervalMs);
+  consolidateTimer = setInterval(() => void runConsolidate(), config.consolidateIntervalMs);
+  decayTimer = setInterval(() => void runDecay(), config.decayIntervalMs);
 
   console.log(
     `[scheduler] started — consolidation every ${config.consolidateIntervalMs}ms, decay every ${config.decayIntervalMs}ms`
