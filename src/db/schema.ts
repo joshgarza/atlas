@@ -75,6 +75,30 @@ export function migrate(db: Database.Database): void {
     db.exec('ALTER TABLE events ADD COLUMN processed_at TEXT');
   }
 
+  // Add idempotency_key column to events (for collector dedup)
+  const hasIdempotencyKey = db.prepare(
+    "SELECT COUNT(*) as cnt FROM pragma_table_info('events') WHERE name = 'idempotency_key'"
+  ).get() as { cnt: number };
+
+  if (hasIdempotencyKey.cnt === 0) {
+    db.exec('ALTER TABLE events ADD COLUMN idempotency_key TEXT');
+  }
+
+  // Add content_hash column to events (SHA-256 of content for change detection)
+  const hasContentHash = db.prepare(
+    "SELECT COUNT(*) as cnt FROM pragma_table_info('events') WHERE name = 'content_hash'"
+  ).get() as { cnt: number };
+
+  if (hasContentHash.cnt === 0) {
+    db.exec('ALTER TABLE events ADD COLUMN content_hash TEXT');
+  }
+
+  // Partial unique index on idempotency_key (nulls allowed)
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_events_idempotency_key ON events(idempotency_key) WHERE idempotency_key IS NOT NULL');
+
+  // Index on content_hash for fast duplicate lookups
+  db.exec('CREATE INDEX IF NOT EXISTS idx_events_content_hash ON events(content_hash)');
+
   // FTS5 virtual table — separate because CREATE VIRTUAL TABLE doesn't support IF NOT EXISTS cleanly
   const ftsExists = db.prepare(
     "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes_fts'"

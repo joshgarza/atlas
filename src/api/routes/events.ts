@@ -8,8 +8,8 @@ const app = new Hono();
 app.post('/events', async (c) => {
   try {
     const body = await c.req.json<CreateEventInput>();
-    const event = createEvent(body);
-    return c.json(event, 201);
+    const { deduplicated, ...event } = createEvent(body);
+    return c.json(event, deduplicated ? 200 : 201);
   } catch (err) {
     if (err instanceof SyntaxError) {
       return c.json({ error: 'Invalid JSON body' }, 400);
