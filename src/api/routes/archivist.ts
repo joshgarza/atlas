@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { runArchivist, getArchivistStatus } from '../../archivist/index.js';
+import { runArchivist, getArchivistStatus, runDeduplication } from '../../archivist/index.js';
 import { stopScheduler, updateScheduler, getSchedulerStatus, MIN_INTERVAL_MS } from '../../archivist/scheduler.js';
 
 const app = new Hono();
@@ -8,6 +8,16 @@ const app = new Hono();
 app.post('/archivist/run', async (c) => {
   try {
     const result = await runArchivist();
+    return c.json(result);
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+// Run deduplication
+app.post('/archivist/deduplicate', async (c) => {
+  try {
+    const result = await runDeduplication();
     return c.json(result);
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
