@@ -5,9 +5,9 @@ import { stopScheduler, updateScheduler, getSchedulerStatus, MIN_INTERVAL_MS } f
 const app = new Hono();
 
 // Run full archivist cycle
-app.post('/archivist/run', (c) => {
+app.post('/archivist/run', async (c) => {
   try {
-    const result = runArchivist();
+    const result = await runArchivist();
     return c.json(result);
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);

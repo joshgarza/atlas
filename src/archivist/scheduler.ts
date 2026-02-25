@@ -22,6 +22,7 @@ export interface SchedulerStatus {
 
 let consolidateTimer: ReturnType<typeof setInterval> | null = null;
 let decayTimer: ReturnType<typeof setInterval> | null = null;
+let consolidateLock = false;
 
 let config: SchedulerConfig = {
   consolidateIntervalMs:
@@ -35,18 +36,30 @@ let lastDecayAt: string | null = null;
 let consolidateRunCount = 0;
 let decayRunCount = 0;
 
-function runConsolidate(): void {
+async function runConsolidate(): Promise<void> {
+  if (consolidateLock) {
+    console.log('[scheduler] consolidation already running, skipping');
+    return;
+  }
+  consolidateLock = true;
   try {
-    consolidate();
+    await consolidate();
     lastConsolidateAt = new Date().toISOString();
     consolidateRunCount++;
     console.log(`[scheduler] consolidation complete at ${lastConsolidateAt}`);
   } catch (err) {
     console.error('[scheduler] consolidation error:', (err as Error).message);
+  } finally {
+    consolidateLock = false;
   }
 }
 
-function runDecay(): void {
+async function runDecay(): Promise<void> {
+  if (consolidateLock) {
+    console.log('[scheduler] consolidation in progress, skipping decay cycle');
+    return;
+  }
+  consolidateLock = true;
   try {
     decayActivation();
     lastDecayAt = new Date().toISOString();
@@ -54,6 +67,8 @@ function runDecay(): void {
     console.log(`[scheduler] decay complete at ${lastDecayAt}`);
   } catch (err) {
     console.error('[scheduler] decay cycle error:', (err as Error).message);
+  } finally {
+    consolidateLock = false;
   }
 }
 
@@ -75,8 +90,12 @@ export function startScheduler(overrides?: Partial<SchedulerConfig>): void {
   config.consolidateIntervalMs = Math.max(MIN_INTERVAL_MS, config.consolidateIntervalMs);
   config.decayIntervalMs = Math.max(MIN_INTERVAL_MS, config.decayIntervalMs);
 
-  consolidateTimer = setInterval(runConsolidate, config.consolidateIntervalMs);
-  decayTimer = setInterval(runDecay, config.decayIntervalMs);
+  consolidateTimer = setInterval(() => runConsolidate().catch(err => {
+    console.error('[scheduler] unhandled consolidation error:', (err as Error).message);
+  }), config.consolidateIntervalMs);
+  decayTimer = setInterval(() => runDecay().catch(err => {
+    console.error('[scheduler] unhandled decay cycle error:', (err as Error).message);
+  }), config.decayIntervalMs);
 
   console.log(
     `[scheduler] started — consolidation every ${config.consolidateIntervalMs}ms, decay every ${config.decayIntervalMs}ms`
