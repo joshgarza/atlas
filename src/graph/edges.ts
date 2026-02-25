@@ -51,6 +51,15 @@ export function getEdgesByNode(nodeId: string): Edge[] {
   return rows.map(parseEdgeRow);
 }
 
+export function listEdges(): Edge[] {
+  const db = getDb();
+  const rows = db
+    .prepare('SELECT * FROM edges ORDER BY created_at DESC')
+    .all() as Record<string, unknown>[];
+
+  return rows.map(parseEdgeRow);
+}
+
 export function getEdge(id: string): Edge | null {
   const db = getDb();
   const row = db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as

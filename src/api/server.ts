@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { runArchivist, getArchivistStatus } from '../archivist/index.js';
 import { startScheduler, stopScheduler, updateScheduler, getSchedulerStatus, MIN_INTERVAL_MS } from '../archivist/scheduler.js';
 import nodeRoutes from './routes/nodes.js';
@@ -71,6 +72,9 @@ app.delete('/archivist/schedule', (c) => {
     return c.json({ error: (err as Error).message }, 500);
   }
 });
+
+// Serve static frontend files from public/
+app.use('/*', serveStatic({ root: './public' }));
 
 const port = parseInt(process.env.PORT ?? '3001', 10);
 

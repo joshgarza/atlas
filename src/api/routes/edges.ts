@@ -1,8 +1,18 @@
 import { Hono } from 'hono';
-import { createEdge } from '../../graph/edges.js';
+import { createEdge, listEdges } from '../../graph/edges.js';
 import type { CreateEdgeInput } from '../../types.js';
 
 const app = new Hono();
+
+// List all edges
+app.get('/edges', (c) => {
+  try {
+    const edges = listEdges();
+    return c.json(edges);
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
 
 // Create an edge
 app.post('/edges', async (c) => {
