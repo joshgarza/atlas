@@ -6,6 +6,7 @@ import { getDb } from '../db/connection.js';
 export { consolidate } from './consolidate.js';
 export { reinforce } from './reinforce.js';
 export { attenuate } from './attenuate.js';
+export { startScheduler, stopScheduler, updateScheduler, getSchedulerStatus } from './scheduler.js';
 
 export interface ArchivistRunResult {
   consolidation: ConsolidateResult;
