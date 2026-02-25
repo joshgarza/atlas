@@ -6,6 +6,7 @@ import nodeRoutes from './routes/nodes.js';
 import edgeRoutes from './routes/edges.js';
 import eventRoutes from './routes/events.js';
 import searchRoutes from './routes/search.js';
+import graphRoutes from './routes/graph.js';
 
 const app = new Hono();
 
@@ -19,6 +20,7 @@ app.route('/', nodeRoutes);
 app.route('/', edgeRoutes);
 app.route('/', eventRoutes);
 app.route('/', searchRoutes);
+app.route('/', graphRoutes);
 
 // Archivist endpoints
 app.post('/archivist/run', (c) => {
