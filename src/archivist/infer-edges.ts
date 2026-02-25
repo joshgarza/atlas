@@ -238,7 +238,16 @@ export async function inferEdges(
     let proposals: EdgeProposal[];
     try {
       proposals = await callClaude(node, candidates);
-    } catch {
+    } catch (err) {
+      createEvent({
+        type: 'archivist_action',
+        source: 'archivist/infer-edges',
+        content: JSON.stringify({
+          action: 'inference_error',
+          node_id: nodeId,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      });
       result.skipped++;
       continue;
     }
