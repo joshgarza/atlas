@@ -13,6 +13,8 @@ export interface ConsolidateResult {
   nodesCreated: number;
   nodesUpdated: number;
   edgesCreated: number;
+  /** IDs of nodes created or updated during this consolidation pass. */
+  affectedNodeIds: string[];
 }
 
 /** Shape of structured event content from Collectors. */
@@ -98,7 +100,7 @@ function gatherCandidates(title: string): CandidateNode[] {
 function consolidateWithFts(
   event: Event & { metadata: string | null; processed_at: string | null },
   payload: EventPayload,
-): { nodesCreated: number; nodesUpdated: number } {
+): { nodesCreated: number; nodesUpdated: number; affectedNodeId: string | null } {
   let existing: ReturnType<typeof searchNodes> = [];
   try {
     existing = searchNodes(payload.title, 5);
@@ -131,7 +133,7 @@ function consolidateWithFts(
       }),
     });
 
-    return { nodesCreated: 0, nodesUpdated: 1 };
+    return { nodesCreated: 0, nodesUpdated: 1, affectedNodeId: match.id };
   }
 
   const node = createNode({
@@ -157,7 +159,7 @@ function consolidateWithFts(
     }),
   });
 
-  return { nodesCreated: 1, nodesUpdated: 0 };
+  return { nodesCreated: 1, nodesUpdated: 0, affectedNodeId: node.id };
 }
 
 /**
@@ -189,6 +191,7 @@ export async function consolidate(): Promise<ConsolidateResult> {
   let nodesUpdated = 0;
   let edgesCreated = 0;
   let processed = 0;
+  const affectedNodeIds: string[] = [];
 
   const useLlm = isLlmAvailable();
 
@@ -247,6 +250,7 @@ export async function consolidate(): Promise<ConsolidateResult> {
           bumpActivation(analysis.matchedNodeId);
           nodeId = analysis.matchedNodeId;
           nodesUpdated++;
+          affectedNodeIds.push(analysis.matchedNodeId);
 
           createEvent({
             type: 'archivist_action',
@@ -276,6 +280,7 @@ export async function consolidate(): Promise<ConsolidateResult> {
 
           nodeId = node.id;
           nodesCreated++;
+          affectedNodeIds.push(node.id);
 
           createEvent({
             type: 'archivist_action',
@@ -312,17 +317,19 @@ export async function consolidate(): Promise<ConsolidateResult> {
         const result = consolidateWithFts(event, payload);
         nodesCreated += result.nodesCreated;
         nodesUpdated += result.nodesUpdated;
+        if (result.affectedNodeId) affectedNodeIds.push(result.affectedNodeId);
       }
     } else {
       // No LLM available — use FTS fallback
       const result = consolidateWithFts(event, payload);
       nodesCreated += result.nodesCreated;
       nodesUpdated += result.nodesUpdated;
+      if (result.affectedNodeId) affectedNodeIds.push(result.affectedNodeId);
     }
 
     markProcessed.run(now, event.id);
     processed++;
   }
 
-  return { processed, nodesCreated, nodesUpdated, edgesCreated };
+  return { processed, nodesCreated, nodesUpdated, edgesCreated, affectedNodeIds };
 }
