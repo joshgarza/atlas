@@ -1,51 +1,57 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import { searchNodes, getRelatedNodes, getRecentNodes } from '../../graph/query.js';
+import { searchQuery, relatedQuery, recentQuery, formatZodError } from '../schemas.js';
 
 const app = new Hono();
 
 // Full-text search
-app.get('/search', (c) => {
-  try {
-    const q = c.req.query('q');
-    if (!q) {
-      return c.json({ error: 'Query parameter "q" is required' }, 400);
+app.get('/search',
+  zValidator('query', searchQuery, (result, c) => {
+    if (!result.success) return c.json({ error: formatZodError(result.error) }, 400);
+  }),
+  (c) => {
+    try {
+      const { q, limit } = c.req.valid('query');
+      const nodes = searchNodes(q, limit);
+      return c.json(nodes);
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 500);
     }
-
-    const limitStr = c.req.query('limit');
-    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
-
-    const nodes = searchNodes(q, limit);
-    return c.json(nodes);
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
+  },
+);
 
 // Related nodes via graph traversal
-app.get('/search/related/:id', (c) => {
-  try {
-    const id = c.req.param('id');
-    const depthStr = c.req.query('depth');
-    const depth = depthStr ? parseInt(depthStr, 10) : undefined;
-
-    const nodes = getRelatedNodes(id, depth);
-    return c.json(nodes);
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
+app.get('/search/related/:id',
+  zValidator('query', relatedQuery, (result, c) => {
+    if (!result.success) return c.json({ error: formatZodError(result.error) }, 400);
+  }),
+  (c) => {
+    try {
+      const id = c.req.param('id');
+      const { depth } = c.req.valid('query');
+      const nodes = getRelatedNodes(id, depth);
+      return c.json(nodes);
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 500);
+    }
+  },
+);
 
 // Recently accessed nodes
-app.get('/search/recent', (c) => {
-  try {
-    const limitStr = c.req.query('limit');
-    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
-
-    const nodes = getRecentNodes(limit);
-    return c.json(nodes);
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
+app.get('/search/recent',
+  zValidator('query', recentQuery, (result, c) => {
+    if (!result.success) return c.json({ error: formatZodError(result.error) }, 400);
+  }),
+  (c) => {
+    try {
+      const { limit } = c.req.valid('query');
+      const nodes = getRecentNodes(limit);
+      return c.json(nodes);
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 500);
+    }
+  },
+);
 
 export default app;

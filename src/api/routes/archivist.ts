@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import { runArchivist, getArchivistStatus, runDeduplication } from '../../archivist/index.js';
-import { stopScheduler, updateScheduler, getSchedulerStatus, MIN_INTERVAL_MS } from '../../archivist/scheduler.js';
+import { stopScheduler, updateScheduler, getSchedulerStatus } from '../../archivist/scheduler.js';
+import { archivistScheduleSchema, formatZodError } from '../schemas.js';
 
 const app = new Hono();
 
@@ -36,28 +38,20 @@ app.get('/archivist/status', (c) => {
 });
 
 // Update schedule intervals
-app.put('/archivist/schedule', async (c) => {
-  try {
-    const body = await c.req.json();
-    const overrides: Record<string, number> = {};
-    if (typeof body.consolidateIntervalMs === 'number') {
-      if (body.consolidateIntervalMs < MIN_INTERVAL_MS) {
-        return c.json({ error: `consolidateIntervalMs must be >= ${MIN_INTERVAL_MS}` }, 400);
-      }
-      overrides.consolidateIntervalMs = body.consolidateIntervalMs;
+app.put('/archivist/schedule',
+  zValidator('json', archivistScheduleSchema, (result, c) => {
+    if (!result.success) return c.json({ error: formatZodError(result.error) }, 400);
+  }),
+  async (c) => {
+    try {
+      const body = c.req.valid('json');
+      updateScheduler(body);
+      return c.json(getSchedulerStatus());
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 500);
     }
-    if (typeof body.decayIntervalMs === 'number') {
-      if (body.decayIntervalMs < MIN_INTERVAL_MS) {
-        return c.json({ error: `decayIntervalMs must be >= ${MIN_INTERVAL_MS}` }, 400);
-      }
-      overrides.decayIntervalMs = body.decayIntervalMs;
-    }
-    updateScheduler(overrides);
-    return c.json(getSchedulerStatus());
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
+  },
+);
 
 // Stop the scheduler
 app.delete('/archivist/schedule', (c) => {
