@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Atlas</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      line-height: 1.5;
+    }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 { font-size: 20px; font-weight: 600; }
+
+    .btn {
+      padding: 6px 14px;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: #f0f0f0; }
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+
+    .filters {
+      padding: 12px 24px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .filters select, .filters input {
+      padding: 5px 10px;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    .filters input { flex: 1; max-width: 300px; }
+
+    main { padding: 16px 24px; max-width: 960px; }
+
+    .node-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .node-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .node-card:hover {
+      border-color: #b0b0b0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .node-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .node-card-title {
+      font-weight: 600;
+      font-size: 15px;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .badge {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .badge-type {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    .badge-status-active { background: #d1fae5; color: #065f46; }
+    .badge-status-superseded { background: #fef3c7; color: #92400e; }
+    .badge-status-deprecated { background: #fee2e2; color: #991b1b; }
+
+    .node-card-content {
+      font-size: 13px;
+      color: #555;
+      margin-top: 4px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .node-card-tags {
+      margin-top: 6px;
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      font-size: 11px;
+      background: #f0f0f0;
+      color: #555;
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 100;
+      justify-content: center;
+      align-items: flex-start;
+      padding-top: 60px;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 10px;
+      width: 560px;
+      max-width: 95vw;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #888;
+      padding: 4px;
+      line-height: 1;
+    }
+    .modal-close:hover { color: #333; }
+
+    .modal-body { padding: 16px 20px; }
+
+    .form-group { margin-bottom: 14px; }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: #444;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    .form-group textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-hint {
+      font-size: 11px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .error-msg {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #888;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Atlas</h1>
+    <button class="btn btn-primary" onclick="openCreateForm()">New Node</button>
+  </header>
+
+  <div class="filters">
+    <select id="filter-type" onchange="loadNodes()">
+      <option value="">All types</option>
+      <option value="concept">concept</option>
+      <option value="entity">entity</option>
+      <option value="preference">preference</option>
+      <option value="goal">goal</option>
+      <option value="habit">habit</option>
+      <option value="observation">observation</option>
+    </select>
+    <select id="filter-status" onchange="loadNodes()">
+      <option value="">All statuses</option>
+      <option value="active">active</option>
+      <option value="superseded">superseded</option>
+      <option value="deprecated">deprecated</option>
+    </select>
+    <button class="btn" onclick="loadNodes()">Refresh</button>
+  </div>
+
+  <main>
+    <div id="node-list" class="node-list"></div>
+  </main>
+
+  <!-- Create / Edit Modal -->
+  <div id="modal-overlay" class="modal-overlay" onclick="onOverlayClick(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">New Node</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="form-error" class="error-msg"></div>
+        <form id="node-form" onsubmit="handleSubmit(event)">
+          <input type="hidden" id="form-id">
+
+          <div class="form-group">
+            <label for="form-title">Title</label>
+            <input type="text" id="form-title" required>
+          </div>
+
+          <div class="form-group">
+            <label for="form-content">Content</label>
+            <textarea id="form-content" required></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="form-type">Type</label>
+              <select id="form-type" required>
+                <option value="concept">concept</option>
+                <option value="entity">entity</option>
+                <option value="preference">preference</option>
+                <option value="goal">goal</option>
+                <option value="habit">habit</option>
+                <option value="observation">observation</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="form-granularity">Granularity</label>
+              <select id="form-granularity" required>
+                <option value="standard">standard</option>
+                <option value="broad">broad</option>
+                <option value="detailed">detailed</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="status-group" class="form-group" style="display:none">
+            <label for="form-status">Status</label>
+            <select id="form-status">
+              <option value="active">active</option>
+              <option value="superseded">superseded</option>
+              <option value="deprecated">deprecated</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="form-tags">Tags</label>
+            <input type="text" id="form-tags" placeholder="comma-separated">
+            <div class="form-hint">Separate tags with commas</div>
+          </div>
+
+          <div id="reason-group" class="form-group" style="display:none">
+            <label for="form-reason">Change reason</label>
+            <input type="text" id="form-reason" placeholder="Why are you making this change?">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitForm()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let editingNodeId = null;
+
+    async function loadNodes() {
+      const type = document.getElementById('filter-type').value;
+      const status = document.getElementById('filter-status').value;
+
+      const params = new URLSearchParams();
+      if (type) params.set('type', type);
+      if (status) params.set('status', status);
+      params.set('limit', '100');
+
+      try {
+        const res = await fetch('/nodes?' + params.toString());
+        const nodes = await res.json();
+        renderNodes(nodes);
+      } catch (err) {
+        document.getElementById('node-list').innerHTML =
+          '<div class="empty-state">Failed to load nodes</div>';
+      }
+    }
+
+    function renderNodes(nodes) {
+      const container = document.getElementById('node-list');
+
+      if (!nodes.length) {
+        container.innerHTML = '<div class="empty-state">No nodes yet. Create one to get started.</div>';
+        return;
+      }
+
+      container.innerHTML = nodes.map(node => `
+        <div class="node-card" onclick="openEditForm('${node.id}')">
+          <div class="node-card-header">
+            <span class="node-card-title">${escapeHtml(node.title)}</span>
+            <span class="badge badge-type">${node.type}</span>
+            <span class="badge badge-status-${node.status}">${node.status}</span>
+          </div>
+          <div class="node-card-content">${escapeHtml(node.content)}</div>
+          ${node.tags.length ? `
+            <div class="node-card-tags">
+              ${node.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    function openCreateForm() {
+      editingNodeId = null;
+      document.getElementById('modal-title').textContent = 'New Node';
+      document.getElementById('form-id').value = '';
+      document.getElementById('form-title').value = '';
+      document.getElementById('form-content').value = '';
+      document.getElementById('form-type').value = 'concept';
+      document.getElementById('form-granularity').value = 'standard';
+      document.getElementById('form-status').value = 'active';
+      document.getElementById('form-tags').value = '';
+      document.getElementById('form-reason').value = '';
+      document.getElementById('status-group').style.display = 'none';
+      document.getElementById('reason-group').style.display = 'none';
+      hideError();
+      document.getElementById('modal-overlay').classList.add('open');
+      document.getElementById('form-title').focus();
+    }
+
+    async function openEditForm(id) {
+      try {
+        const res = await fetch('/nodes/' + id + '?peek=true');
+        if (!res.ok) throw new Error('Failed to load node');
+        const node = await res.json();
+
+        editingNodeId = id;
+        document.getElementById('modal-title').textContent = 'Edit Node';
+        document.getElementById('form-id').value = id;
+        document.getElementById('form-title').value = node.title;
+        document.getElementById('form-content').value = node.content;
+        document.getElementById('form-type').value = node.type;
+        document.getElementById('form-granularity').value = node.granularity;
+        document.getElementById('form-status').value = node.status;
+        document.getElementById('form-tags').value = node.tags.join(', ');
+        document.getElementById('form-reason').value = '';
+        document.getElementById('status-group').style.display = '';
+        document.getElementById('reason-group').style.display = '';
+        hideError();
+        document.getElementById('modal-overlay').classList.add('open');
+        document.getElementById('form-title').focus();
+      } catch (err) {
+        alert('Could not load node for editing.');
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('open');
+      editingNodeId = null;
+    }
+
+    function onOverlayClick(e) {
+      if (e.target === e.currentTarget) closeModal();
+    }
+
+    function handleSubmit(e) {
+      e.preventDefault();
+      submitForm();
+    }
+
+    function parseTags(str) {
+      return str.split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+    async function submitForm() {
+      hideError();
+
+      const title = document.getElementById('form-title').value.trim();
+      const content = document.getElementById('form-content').value.trim();
+      const type = document.getElementById('form-type').value;
+      const granularity = document.getElementById('form-granularity').value;
+      const tags = parseTags(document.getElementById('form-tags').value);
+
+      if (!title || !content) {
+        showError('Title and content are required.');
+        return;
+      }
+
+      try {
+        let res;
+        if (editingNodeId) {
+          // Update existing node
+          const body = {
+            title,
+            content,
+            type,
+            granularity,
+            status: document.getElementById('form-status').value,
+            tags,
+            change_reason: document.getElementById('form-reason').value.trim() || undefined,
+            changed_by: 'ui',
+          };
+          res = await fetch('/nodes/' + editingNodeId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+        } else {
+          // Create new node
+          const body = { type, title, content, granularity, tags };
+          res = await fetch('/nodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+        }
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Request failed');
+        }
+
+        closeModal();
+        loadNodes();
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('form-error');
+      el.textContent = msg;
+      el.classList.add('visible');
+    }
+
+    function hideError() {
+      const el = document.getElementById('form-error');
+      el.textContent = '';
+      el.classList.remove('visible');
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // Initial load
+    loadNodes();
+  </script>
+</body>
+</html>
