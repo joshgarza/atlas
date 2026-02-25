@@ -1,5 +1,7 @@
 import { consolidate } from './consolidate.js';
 import type { ConsolidateResult } from './consolidate.js';
+import { runDeduplication } from './deduplicate.js';
+import type { DeduplicationResult } from './deduplicate.js';
 import { decayActivation } from '../graph/activation.js';
 import { getDb } from '../db/connection.js';
 import { createClaudeCodeConfig } from './claude.js';
@@ -8,12 +10,14 @@ import type { ClaudeCodeConfig } from './claude.js';
 export { consolidate } from './consolidate.js';
 export { reinforce } from './reinforce.js';
 export { attenuate } from './attenuate.js';
+export { runDeduplication } from './deduplicate.js';
 export { startScheduler, stopScheduler, updateScheduler, getSchedulerStatus } from './scheduler.js';
 export { createClaudeCodeConfig, queryClaudeCode } from './claude.js';
 export type { ClaudeCodeConfig, ClaudeCodeResult } from './claude.js';
 
 export interface ArchivistRunResult {
   consolidation: ConsolidateResult;
+  deduplication: DeduplicationResult;
   decay: { decayed: number };
   timing: {
     startedAt: string;
@@ -46,7 +50,8 @@ const claudeCodeConfig = createClaudeCodeConfig();
 /**
  * Run a full archivist cycle:
  * 1. Consolidate unprocessed events into graph nodes
- * 2. Run activation decay sweep
+ * 2. Deduplicate semantically similar nodes (requires ANTHROPIC_API_KEY)
+ * 3. Run activation decay sweep
  */
 export async function runArchivist(): Promise<ArchivistRunResult> {
   const startedAt = new Date().toISOString();
@@ -55,7 +60,10 @@ export async function runArchivist(): Promise<ArchivistRunResult> {
   // Step 1: Consolidate new events (async for LLM calls)
   const consolidation = await consolidate();
 
-  // Step 2: Decay activation scores
+  // Step 2: Deduplicate semantically similar nodes
+  const deduplication = await runDeduplication();
+
+  // Step 3: Decay activation scores
   const decay = decayActivation();
 
   const completedAt = new Date().toISOString();
@@ -63,6 +71,7 @@ export async function runArchivist(): Promise<ArchivistRunResult> {
 
   const result: ArchivistRunResult = {
     consolidation,
+    deduplication,
     decay,
     timing: {
       startedAt,
@@ -72,7 +81,7 @@ export async function runArchivist(): Promise<ArchivistRunResult> {
     runCount: runCount + 1,
   };
 
-  // Only update state after both steps succeed
+  // Only update state after all steps succeed
   runCount++;
   lastRunResult = result;
   return result;
