@@ -32,5 +32,23 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  email-collector:
+    build: .
+    command: ["node", "--import", "tsx", "src/collectors/run-email.ts", "--poll"]
+    volumes:
+      - email-state:/app/data
+    environment:
+      - GMAIL_CLIENT_ID=${GMAIL_CLIENT_ID:?Set GMAIL_CLIENT_ID to your Google OAuth2 client ID}
+      - GMAIL_CLIENT_SECRET=${GMAIL_CLIENT_SECRET:?Set GMAIL_CLIENT_SECRET to your Google OAuth2 client secret}
+      - GMAIL_REFRESH_TOKEN=${GMAIL_REFRESH_TOKEN:?Set GMAIL_REFRESH_TOKEN to your Google OAuth2 refresh token}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY to your Anthropic API key}
+      - ATLAS_URL=http://atlas:3001
+      - EMAIL_STATE_DIR=/app/data
+    depends_on:
+      atlas:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   atlas-data:
+  email-state:
