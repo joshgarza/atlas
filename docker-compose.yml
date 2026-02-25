@@ -14,5 +14,23 @@ services:
       timeout: 5s
       retries: 3
 
+  google-calendar-collector:
+    build: .
+    command: ["node", "--import", "tsx", "src/collectors/run-google-calendar.ts", "--poll"]
+    environment:
+      - GOOGLE_ACCESS_TOKEN=${GOOGLE_ACCESS_TOKEN:-}
+      - GOOGLE_REFRESH_TOKEN=${GOOGLE_REFRESH_TOKEN:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - GOOGLE_CALENDAR_IDS=${GOOGLE_CALENDAR_IDS:-primary}
+      - ATLAS_URL=http://atlas:3001
+      - SYNC_LOOKBACK_DAYS=${SYNC_LOOKBACK_DAYS:-30}
+      - POLL_INTERVAL_MS=${POLL_INTERVAL_MS:-300000}
+    depends_on:
+      atlas:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   atlas-data:
