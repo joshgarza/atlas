@@ -143,8 +143,10 @@ GET    /search/related/:id  # Find related nodes (graph traversal)
 GET    /search/recent       # Recently accessed nodes
 
 # Archivist
-POST   /archivist/run       # Run full archivist cycle (consolidate + decay)
-GET    /archivist/status     # Last run info, stats, unprocessed event count
+POST   /archivist/run        # Run full archivist cycle (consolidate + decay)
+GET    /archivist/status      # Last run info, stats, schedule status
+PUT    /archivist/schedule    # Update schedule intervals (JSON: consolidateIntervalMs, decayIntervalMs)
+DELETE /archivist/schedule    # Stop the scheduler
 
 # Health
 GET    /health              # Health check
@@ -169,6 +171,7 @@ src/
     consolidate.ts        # Process events into graph nodes
     reinforce.ts          # Targeted activation boost + propagation
     attenuate.ts          # Targeted attenuation of superseded nodes
+    scheduler.ts          # Scheduled consolidation + decay timers
   collectors/
     obsidian.ts           # Obsidian vault reader + event transformer
     run-obsidian.ts       # CLI entry point for Obsidian collector
