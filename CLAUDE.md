@@ -6,6 +6,24 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 Atlas is a personal memory service — the foundational layer of a personal assistant system. Memory is the hub, not a feature. The memory model is inspired by attractor states in neuroscience: concepts form paths that deepen with use, enabling fast retrieval and mastery. Errors are corrected by branching (creating new paths) and attenuating old ones, never by deletion. Nothing is ever lost.
 
+## Linear
+- Team: `JOS`
+- Project: `atlas`
+
+## CLI
+
+All commands via:
+```bash
+node --experimental-strip-types /home/josh/coding/claude/task-runner/main/src/cli.ts <command>
+```
+
+```bash
+<cli> add-ticket "Title" --team JOS --project atlas [--description "Details"]
+<cli> run JOS-42
+<cli> review <pr-url>
+<cli> standup --project atlas
+```
+
 ## Architecture
 
 ### Roles
