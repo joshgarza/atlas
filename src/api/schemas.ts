@@ -43,6 +43,12 @@ export const CreateEdgeInputSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
+export const UpdateEdgeInputSchema = z.object({
+  type: EdgeTypeSchema.optional(),
+  weight: z.number().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
 export const CreateEventInputSchema = z.object({
   type: EventTypeSchema,
   source: z.string(),
