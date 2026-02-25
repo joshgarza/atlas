@@ -99,12 +99,11 @@ export function stopScheduler(): void {
 
 /**
  * Update scheduler intervals at runtime. Restarts timers with new config.
+ * If the scheduler is stopped, it will be started with the new config.
  */
 export function updateScheduler(overrides: Partial<SchedulerConfig>): void {
   config = { ...config, ...overrides };
-  if (consolidateTimer || decayTimer) {
-    startScheduler();
-  }
+  startScheduler();
 }
 
 /**

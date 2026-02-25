@@ -42,12 +42,19 @@ app.get('/archivist/status', (c) => {
 
 app.put('/archivist/schedule', async (c) => {
   try {
+    const MIN_INTERVAL_MS = 60_000; // 1 minute floor
     const body = await c.req.json();
     const overrides: Record<string, number> = {};
     if (typeof body.consolidateIntervalMs === 'number') {
+      if (body.consolidateIntervalMs < MIN_INTERVAL_MS) {
+        return c.json({ error: `consolidateIntervalMs must be >= ${MIN_INTERVAL_MS}` }, 400);
+      }
       overrides.consolidateIntervalMs = body.consolidateIntervalMs;
     }
     if (typeof body.decayIntervalMs === 'number') {
+      if (body.decayIntervalMs < MIN_INTERVAL_MS) {
+        return c.json({ error: `decayIntervalMs must be >= ${MIN_INTERVAL_MS}` }, 400);
+      }
       overrides.decayIntervalMs = body.decayIntervalMs;
     }
     updateScheduler(overrides);
