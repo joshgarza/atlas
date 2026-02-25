@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atlas</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>Atlas</h1>
+    <form id="search-form">
+      <input type="search" id="search-input" placeholder="Search nodes..." autocomplete="off">
+    </form>
+  </header>
+
+  <main>
+    <section id="node-list">
+      <div class="section-header">
+        <h2>Nodes</h2>
+        <div class="filters">
+          <select id="type-filter">
+            <option value="">All types</option>
+            <option value="concept">concept</option>
+            <option value="note">note</option>
+            <option value="entity">entity</option>
+            <option value="event">event</option>
+          </select>
+        </div>
+      </div>
+      <ul id="nodes"></ul>
+      <div id="load-more-container">
+        <button id="load-more" hidden>Load more</button>
+      </div>
+    </section>
+
+    <section id="node-detail" hidden>
+      <button id="back-btn">&larr; Back</button>
+      <article id="detail-content"></article>
+      <div id="detail-edges">
+        <h3>Connections</h3>
+        <ul id="edges-list"></ul>
+      </div>
+      <div id="detail-history">
+        <h3>History</h3>
+        <ul id="history-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div id="status"></div>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
