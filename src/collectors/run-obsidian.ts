@@ -12,6 +12,7 @@
  *   ATLAS_URL   - Atlas API base URL (default: http://localhost:3001)
  */
 
+import path from 'node:path';
 import { importVault, watchVault } from './obsidian.js';
 
 const DEFAULT_VAULT_PATH = process.platform === 'win32'
@@ -23,19 +24,22 @@ function main(): void {
   const vaultPath = process.env['VAULT_PATH'] ?? DEFAULT_VAULT_PATH;
   const atlasUrl = process.env['ATLAS_URL'] ?? DEFAULT_ATLAS_URL;
   const watchMode = process.argv.includes('--watch');
+  const cursorPath = path.join(path.resolve(vaultPath), '.atlas-cursor.json');
 
   console.log('=== Obsidian Collector for Atlas ===');
   console.log(`  Vault:  ${vaultPath}`);
   console.log(`  Atlas:  ${atlasUrl}`);
+  console.log(`  Cursor: ${cursorPath}`);
   console.log(`  Mode:   ${watchMode ? 'batch import + watch' : 'batch import'}`);
   console.log('');
 
   // Run batch import, then optionally start watcher
-  importVault(vaultPath, atlasUrl)
+  importVault(vaultPath, atlasUrl, cursorPath)
     .then((summary) => {
       console.log('');
       console.log('=== Import Summary ===');
       console.log(`  Files scanned:   ${summary.filesScanned}`);
+      console.log(`  Files skipped:   ${summary.filesSkipped}`);
       console.log(`  Events created:  ${summary.eventsCreated}`);
       console.log(`  Errors:          ${summary.errors.length}`);
       console.log(`  Duration:        ${(summary.durationMs / 1000).toFixed(1)}s`);

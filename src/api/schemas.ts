@@ -48,6 +48,7 @@ export const CreateEventInputSchema = z.object({
   source: z.string(),
   content: z.string(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  idempotency_key: z.string().optional(),
 });
 
 // --- Validation error hook ---

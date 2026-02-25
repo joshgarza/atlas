@@ -3,22 +3,24 @@ import { createEvent, listEvents } from './events.js';
 
 describe('createEvent', () => {
   it('creates an event with required fields', () => {
-    const event = createEvent({
+    const { event, existing } = createEvent({
       type: 'observation',
       source: 'test',
       content: 'something happened',
     });
 
+    expect(existing).toBe(false);
     expect(event.id).toBeTruthy();
     expect(event.type).toBe('observation');
     expect(event.source).toBe('test');
     expect(event.content).toBe('something happened');
     expect(event.metadata).toBeNull();
+    expect(event.idempotency_key).toBeNull();
     expect(event.created_at).toBeTruthy();
   });
 
   it('creates an event with metadata', () => {
-    const event = createEvent({
+    const { event } = createEvent({
       type: 'query',
       source: 'api',
       content: 'search query',
@@ -27,12 +29,61 @@ describe('createEvent', () => {
 
     expect(event.metadata).toEqual({ query: 'test', results: 5 });
   });
+
+  it('stores and returns idempotency key', () => {
+    const { event, existing } = createEvent({
+      type: 'observation',
+      source: 'obsidian',
+      content: 'note content',
+      idempotency_key: 'obsidian:/vault:notes/test.md',
+    });
+
+    expect(existing).toBe(false);
+    expect(event.idempotency_key).toBe('obsidian:/vault:notes/test.md');
+  });
+
+  it('returns existing event for duplicate idempotency key', () => {
+    const { event: first } = createEvent({
+      type: 'observation',
+      source: 'obsidian',
+      content: 'original content',
+      idempotency_key: 'obsidian:/vault:notes/dedup.md',
+    });
+
+    const { event: second, existing } = createEvent({
+      type: 'observation',
+      source: 'obsidian',
+      content: 'different content',
+      idempotency_key: 'obsidian:/vault:notes/dedup.md',
+    });
+
+    expect(existing).toBe(true);
+    expect(second.id).toBe(first.id);
+    expect(second.content).toBe('original content');
+  });
+
+  it('allows duplicate events without idempotency key', () => {
+    const { event: first } = createEvent({
+      type: 'observation',
+      source: 'test',
+      content: 'same content',
+    });
+
+    const { event: second, existing } = createEvent({
+      type: 'observation',
+      source: 'test',
+      content: 'same content',
+    });
+
+    expect(existing).toBe(false);
+    expect(second.id).not.toBe(first.id);
+  });
 });
 
 describe('listEvents', () => {
   it('returns events in reverse chronological order', () => {
-    const e1 = createEvent({ type: 'observation', source: 'a', content: 'first' });
-    const e2 = createEvent({ type: 'observation', source: 'a', content: 'second' });
+    const { event: e1 } = createEvent({ type: 'observation', source: 'a', content: 'first' });
+    const { event: e2 } = createEvent({ type: 'observation', source: 'a', content: 'second' });
 
     const events = listEvents();
     expect(events.length).toBe(2);
