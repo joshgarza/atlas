@@ -193,6 +193,10 @@ export async function importVault(
   summary.filesScanned = files.length;
   console.log(`Found ${files.length} markdown files in vault`);
 
+  if (files.length === 0) {
+    console.warn('Warning: no markdown files found — check vault path and contents');
+  }
+
   const eventsUrl = `${atlasUrl.replace(/\/$/, '')}/events`;
 
   for (const filePath of files) {

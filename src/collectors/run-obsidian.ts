@@ -48,6 +48,12 @@ function main(): void {
         }
       }
 
+      if (summary.filesScanned === 0 && !watchMode) {
+        console.error('');
+        console.error('Error: zero files scanned — verify VAULT_PATH is correct');
+        process.exit(1);
+      }
+
       if (watchMode) {
         console.log('');
         console.log('Starting file watcher (Ctrl+C to stop)...');
