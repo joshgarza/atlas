@@ -213,7 +213,8 @@ function buildTranscript(turns: ConversationTurn[]): string {
 export function conversationToEvent(conversation: ParsedConversation): CreateEventInput {
   const body = buildTranscript(conversation.turns);
 
-  const title = `Claude Code session: ${conversation.project} (${conversation.startedAt.slice(0, 10)})`;
+  const dateLabel = conversation.startedAt ? conversation.startedAt.slice(0, 10) : 'unknown';
+  const title = `Claude Code session: ${conversation.project} (${dateLabel})`;
 
   const tags = ['claude-code', conversation.project];
   if (conversation.gitBranch) {
@@ -242,6 +243,7 @@ export function conversationToEvent(conversation: ParsedConversation): CreateEve
       assistantMessageCount: conversation.assistantMessageCount,
       tags,
     },
+    idempotency_key: `claude-code:${conversation.sessionId}`,
   };
 }
 
