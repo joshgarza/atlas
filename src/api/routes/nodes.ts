@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { createNode, getNode, updateNode, listNodes, getNodeHistory } from '../../graph/nodes.js';
 import { getEdgesByNode } from '../../graph/edges.js';
-import { CreateNodeInputSchema, UpdateNodeInputSchema, validationHook } from '../schemas.js';
+import { CreateNodeInputSchema, UpdateNodeInputSchema, NodeTypeSchema, NodeStatusSchema, validationHook } from '../schemas.js';
 import type { NodeType, NodeStatus } from '../../types.js';
 
 const app = new Hono();
@@ -21,14 +21,26 @@ app.post('/nodes', zValidator('json', CreateNodeInputSchema, validationHook), as
 // List nodes
 app.get('/nodes', (c) => {
   try {
-    const type = c.req.query('type') as NodeType | undefined;
-    const status = c.req.query('status') as NodeStatus | undefined;
+    const typeParam = c.req.query('type');
+    const statusParam = c.req.query('status');
     const limitStr = c.req.query('limit');
     const offsetStr = c.req.query('offset');
 
     const opts: { type?: NodeType; status?: NodeStatus; limit?: number; offset?: number } = {};
-    if (type) opts.type = type;
-    if (status) opts.status = status;
+    if (typeParam) {
+      const parsed = NodeTypeSchema.safeParse(typeParam);
+      if (!parsed.success) {
+        return c.json({ error: `Invalid type: ${typeParam}` }, 400);
+      }
+      opts.type = parsed.data;
+    }
+    if (statusParam) {
+      const parsed = NodeStatusSchema.safeParse(statusParam);
+      if (!parsed.success) {
+        return c.json({ error: `Invalid status: ${statusParam}` }, 400);
+      }
+      opts.status = parsed.data;
+    }
     if (limitStr) opts.limit = parseInt(limitStr, 10);
     if (offsetStr) opts.offset = parseInt(offsetStr, 10);
 

@@ -85,6 +85,18 @@ export function migrate(db: Database.Database): void {
     db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_events_idempotency_key ON events(idempotency_key) WHERE idempotency_key IS NOT NULL');
   }
 
+  // Saved views table for persisting search filters
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS saved_views (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      filters TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
   // FTS5 virtual table — separate because CREATE VIRTUAL TABLE doesn't support IF NOT EXISTS cleanly
   const ftsExists = db.prepare(
     "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes_fts'"
