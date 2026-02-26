@@ -104,6 +104,7 @@ function contactToEvent(entity: EspoCrmEntity): CreateEventInput {
       createdAt: entity['createdAt'] ?? null,
       modifiedAt: entity['modifiedAt'] ?? null,
     },
+    idempotency_key: `espocrm:Contact:${entity['id']}:${entity['modifiedAt']}`,
   };
 }
 
@@ -133,6 +134,7 @@ function opportunityToEvent(entity: EspoCrmEntity): CreateEventInput {
       createdAt: entity['createdAt'] ?? null,
       modifiedAt: entity['modifiedAt'] ?? null,
     },
+    idempotency_key: `espocrm:Opportunity:${entity['id']}:${entity['modifiedAt']}`,
   };
 }
 
@@ -164,6 +166,7 @@ function activityToEvent(entity: EspoCrmEntity, entityType: EntityType): CreateE
       createdAt: entity['createdAt'] ?? null,
       modifiedAt: entity['modifiedAt'] ?? null,
     },
+    idempotency_key: `espocrm:${entityType}:${entity['id']}:${entity['modifiedAt']}`,
   };
 }
 
