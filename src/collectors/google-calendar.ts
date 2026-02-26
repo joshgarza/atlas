@@ -48,6 +48,53 @@ interface GCalListResponse {
 // --- Google Calendar API ---
 
 const GCAL_API_BASE = 'https://www.googleapis.com/calendar/v3';
+const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+
+/**
+ * Mutable token holder. When a refresh is performed, the access token
+ * is updated in-place so that all subsequent requests use the new token.
+ */
+export interface TokenHolder {
+  accessToken?: string;
+  refreshToken?: string;
+  clientId?: string;
+  clientSecret?: string;
+}
+
+/**
+ * Refresh an expired OAuth2 access token using a refresh token.
+ * Mutates the holder in-place and returns the new access token.
+ */
+export async function refreshAccessToken(holder: TokenHolder): Promise<string> {
+  if (!holder.refreshToken || !holder.clientId || !holder.clientSecret) {
+    throw new Error(
+      'Cannot refresh access token: GOOGLE_REFRESH_TOKEN, GOOGLE_CLIENT_ID, and GOOGLE_CLIENT_SECRET are all required',
+    );
+  }
+
+  console.log('  Access token expired, refreshing...');
+
+  const response = await fetch(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: holder.refreshToken,
+      client_id: holder.clientId,
+      client_secret: holder.clientSecret,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Token refresh failed (${response.status}): ${text}`);
+  }
+
+  const data = (await response.json()) as { access_token: string };
+  holder.accessToken = data.access_token;
+  console.log('  Access token refreshed successfully');
+  return data.access_token;
+}
 
 /**
  * Build authorization headers based on available credentials.
@@ -79,18 +126,19 @@ function withApiKey(url: string, apiKey?: string): string {
 /**
  * Fetch events from a single Google Calendar.
  * Paginates through all results.
+ * On 401, attempts to refresh the access token and retry once.
  */
 export async function fetchCalendarEvents(
   calendarId: string,
   options: {
-    accessToken?: string;
+    tokenHolder: TokenHolder;
     apiKey?: string;
     timeMin?: string;    // ISO string — only events after this time
     timeMax?: string;    // ISO string — only events before this time
     maxResults?: number;
   },
 ): Promise<CalendarEvent[]> {
-  const { accessToken, apiKey, timeMin, timeMax, maxResults = 250 } = options;
+  const { tokenHolder, apiKey, timeMin, timeMax, maxResults = 250 } = options;
   const events: CalendarEvent[] = [];
   let pageToken: string | undefined;
 
@@ -110,9 +158,17 @@ export async function fetchCalendarEvents(
       apiKey,
     );
 
-    const response = await fetch(url, {
-      headers: buildAuthHeaders(accessToken),
+    let response = await fetch(url, {
+      headers: buildAuthHeaders(tokenHolder.accessToken),
     });
+
+    // On 401, attempt token refresh and retry once
+    if (response.status === 401 && tokenHolder.refreshToken) {
+      await refreshAccessToken(tokenHolder);
+      response = await fetch(url, {
+        headers: buildAuthHeaders(tokenHolder.accessToken),
+      });
+    }
 
     if (!response.ok) {
       const text = await response.text();
@@ -210,6 +266,7 @@ export function calendarEventToAtlasEvent(event: CalendarEvent): CreateEventInpu
       eventKind,
       updated: event.updated,
     },
+    idempotency_key: `gcal:${event.calendarId}:${event.id}:${event.updated}`,
   };
 }
 
@@ -222,7 +279,7 @@ export async function syncCalendars(
   calendarIds: string[],
   atlasUrl: string,
   options: {
-    accessToken?: string;
+    tokenHolder: TokenHolder;
     apiKey?: string;
     timeMin?: string;
     timeMax?: string;
@@ -244,7 +301,7 @@ export async function syncCalendars(
     let events: CalendarEvent[];
     try {
       events = await fetchCalendarEvents(calendarId, {
-        accessToken: options.accessToken,
+        tokenHolder: options.tokenHolder,
         apiKey: options.apiKey,
         timeMin: options.timeMin,
         timeMax: options.timeMax,
@@ -296,6 +353,7 @@ export async function syncCalendars(
 /**
  * Start periodic sync of Google Calendar events.
  * Polls for new/changed events at the given interval.
+ * The tokenHolder is shared so that refreshed tokens persist across polls.
  *
  * Returns an object with a stop() method to cancel polling.
  */
@@ -303,7 +361,7 @@ export function startPolling(
   calendarIds: string[],
   atlasUrl: string,
   options: {
-    accessToken?: string;
+    tokenHolder: TokenHolder;
     apiKey?: string;
     intervalMs?: number;
   },
@@ -328,7 +386,7 @@ export function startPolling(
     try {
       console.log(`\nPolling for changes since ${syncStart}...`);
       const summary = await syncCalendars(calendarIds, atlasUrl, {
-        accessToken: options.accessToken,
+        tokenHolder: options.tokenHolder,
         apiKey: options.apiKey,
         timeMin: syncStart,
       });
