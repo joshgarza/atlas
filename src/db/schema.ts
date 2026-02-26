@@ -75,6 +75,16 @@ export function migrate(db: Database.Database): void {
     db.exec('ALTER TABLE events ADD COLUMN processed_at TEXT');
   }
 
+  // Add idempotency_key column to events (for collector deduplication)
+  const hasIdempotencyKey = db.prepare(
+    "SELECT COUNT(*) as cnt FROM pragma_table_info('events') WHERE name = 'idempotency_key'"
+  ).get() as { cnt: number };
+
+  if (hasIdempotencyKey.cnt === 0) {
+    db.exec('ALTER TABLE events ADD COLUMN idempotency_key TEXT');
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_events_idempotency_key ON events(idempotency_key) WHERE idempotency_key IS NOT NULL');
+  }
+
   // FTS5 virtual table — separate because CREATE VIRTUAL TABLE doesn't support IF NOT EXISTS cleanly
   const ftsExists = db.prepare(
     "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes_fts'"

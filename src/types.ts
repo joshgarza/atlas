@@ -64,6 +64,7 @@ export interface Event {
   source: string;
   content: string;
   metadata: Record<string, unknown> | null;
+  idempotency_key: string | null;
   created_at: string;
 }
 

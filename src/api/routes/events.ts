@@ -9,8 +9,8 @@ const app = new Hono();
 app.post('/events', zValidator('json', CreateEventInputSchema, validationHook), async (c) => {
   try {
     const body = c.req.valid('json');
-    const event = createEvent(body);
-    return c.json(event, 201);
+    const { event, existing } = createEvent(body);
+    return c.json(event, existing ? 200 : 201);
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
   }

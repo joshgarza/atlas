@@ -18,6 +18,7 @@ export interface ParsedNote {
 
 export interface ImportSummary {
   filesScanned: number;
+  filesSkipped: number;
   eventsCreated: number;
   errors: Array<{ file: string; error: string }>;
   durationMs: number;
@@ -116,7 +117,7 @@ export function parseNote(absolutePath: string, vaultRoot: string): ParsedNote {
 /**
  * Transform a parsed note into a CreateEventInput for the Atlas API.
  */
-export function noteToEvent(note: ParsedNote): CreateEventInput {
+export function noteToEvent(note: ParsedNote, vaultRoot: string): CreateEventInput {
   const content = JSON.stringify({
     title: note.title,
     body: note.body,
@@ -137,6 +138,7 @@ export function noteToEvent(note: ParsedNote): CreateEventInput {
       tags: note.tags,
       links: note.links,
     },
+    idempotency_key: `obsidian:${vaultRoot}:${note.filePath}:${Date.parse(note.modifiedAt)}`,
   };
 }
 
@@ -167,18 +169,48 @@ function findMarkdownFiles(dir: string): string[] {
   return results;
 }
 
+// --- Cursor tracking ---
+
+export interface SyncCursor {
+  lastSyncAt: string;  // ISO timestamp of last successful import
+}
+
+/**
+ * Read the sync cursor from a JSON file. Returns null if no cursor exists.
+ */
+export function readCursor(cursorPath: string): SyncCursor | null {
+  try {
+    const raw = fs.readFileSync(cursorPath, 'utf-8');
+    return JSON.parse(raw) as SyncCursor;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Write the sync cursor to a JSON file.
+ */
+export function writeCursor(cursorPath: string, cursor: SyncCursor): void {
+  fs.mkdirSync(path.dirname(cursorPath), { recursive: true });
+  fs.writeFileSync(cursorPath, JSON.stringify(cursor, null, 2));
+}
+
 // --- Batch import ---
 
 /**
  * Import all markdown files from an Obsidian vault into Atlas.
+ * If cursorPath is provided, only files modified since the last sync are imported.
+ * The idempotency key is the safety net; the cursor is the optimization.
  */
 export async function importVault(
   vaultPath: string,
   atlasUrl: string,
+  cursorPath?: string,
 ): Promise<ImportSummary> {
   const start = Date.now();
   const summary: ImportSummary = {
     filesScanned: 0,
+    filesSkipped: 0,
     eventsCreated: 0,
     errors: [],
     durationMs: 0,
@@ -189,9 +221,16 @@ export async function importVault(
     throw new Error(`Vault path does not exist: ${resolvedVault}`);
   }
 
+  const cursor = cursorPath ? readCursor(cursorPath) : null;
+  const lastSyncTime = cursor ? new Date(cursor.lastSyncAt).getTime() : 0;
+
   const files = findMarkdownFiles(resolvedVault);
   summary.filesScanned = files.length;
   console.log(`Found ${files.length} markdown files in vault`);
+
+  if (cursor) {
+    console.log(`  Last sync: ${cursor.lastSyncAt}`);
+  }
 
   if (files.length === 0) {
     console.warn('Warning: no markdown files found — check vault path and contents');
@@ -202,8 +241,17 @@ export async function importVault(
   for (const filePath of files) {
     const relativePath = path.relative(resolvedVault, filePath);
     try {
+      // Skip files not modified since last sync (cursor optimization)
+      if (lastSyncTime > 0) {
+        const stats = fs.statSync(filePath);
+        if (stats.mtime.getTime() <= lastSyncTime) {
+          summary.filesSkipped++;
+          continue;
+        }
+      }
+
       const note = parseNote(filePath, resolvedVault);
-      const event = noteToEvent(note);
+      const event = noteToEvent(note, resolvedVault);
 
       const response = await fetch(eventsUrl, {
         method: 'POST',
@@ -227,6 +275,11 @@ export async function importVault(
       summary.errors.push({ file: relativePath, error: message });
       console.error(`  Error processing ${relativePath}: ${message}`);
     }
+  }
+
+  // Update cursor on successful import (no errors)
+  if (cursorPath && summary.errors.length === 0) {
+    writeCursor(cursorPath, { lastSyncAt: new Date().toISOString() });
   }
 
   summary.durationMs = Date.now() - start;
@@ -280,7 +333,7 @@ export function watchVault(
 
     try {
       const note = parseNote(fullPath, resolvedVault);
-      const event = noteToEvent(note);
+      const event = noteToEvent(note, resolvedVault);
 
       const response = await fetch(eventsUrl, {
         method: 'POST',

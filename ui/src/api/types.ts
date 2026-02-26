@@ -51,6 +51,7 @@ export interface Event {
   source: string;
   content: string;
   metadata: Record<string, unknown> | null;
+  idempotency_key: string | null;
   created_at: string;
 }
 
@@ -89,6 +90,7 @@ export interface CreateEventInput {
   source: string;
   content: string;
   metadata?: Record<string, unknown>;
+  idempotency_key?: string;
 }
 
 export interface ArchivistStatus {
