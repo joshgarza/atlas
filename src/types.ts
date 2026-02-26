@@ -10,6 +10,7 @@ import type {
   CreateNodeInputSchema,
   UpdateNodeInputSchema,
   CreateEdgeInputSchema,
+  UpdateEdgeInputSchema,
   CreateEventInputSchema,
 } from './api/schemas.js';
 
@@ -72,4 +73,5 @@ export interface Event {
 export type CreateNodeInput = z.infer<typeof CreateNodeInputSchema>;
 export type UpdateNodeInput = z.infer<typeof UpdateNodeInputSchema>;
 export type CreateEdgeInput = z.infer<typeof CreateEdgeInputSchema>;
+export type UpdateEdgeInput = z.infer<typeof UpdateEdgeInputSchema>;
 export type CreateEventInput = z.infer<typeof CreateEventInputSchema>;
