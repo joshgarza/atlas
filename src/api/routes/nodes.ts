@@ -1,20 +1,19 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import { createNode, getNode, updateNode, listNodes, getNodeHistory } from '../../graph/nodes.js';
 import { getEdgesByNode } from '../../graph/edges.js';
-import type { CreateNodeInput, UpdateNodeInput, NodeType, NodeStatus } from '../../types.js';
+import { CreateNodeInputSchema, UpdateNodeInputSchema, validationHook } from '../schemas.js';
+import type { NodeType, NodeStatus } from '../../types.js';
 
 const app = new Hono();
 
 // Create a node
-app.post('/nodes', async (c) => {
+app.post('/nodes', zValidator('json', CreateNodeInputSchema, validationHook), async (c) => {
   try {
-    const body = await c.req.json<CreateNodeInput>();
+    const body = c.req.valid('json');
     const node = createNode(body);
     return c.json(node, 201);
   } catch (err) {
-    if (err instanceof SyntaxError) {
-      return c.json({ error: 'Invalid JSON body' }, 400);
-    }
     return c.json({ error: (err as Error).message }, 500);
   }
 });
@@ -58,10 +57,10 @@ app.get('/nodes/:id', (c) => {
 });
 
 // Update a node
-app.put('/nodes/:id', async (c) => {
+app.put('/nodes/:id', zValidator('json', UpdateNodeInputSchema, validationHook), async (c) => {
   try {
     const id = c.req.param('id');
-    const body = await c.req.json<UpdateNodeInput>();
+    const body = c.req.valid('json');
 
     // Check if node exists first
     const existing = getNode(id, true);
@@ -72,9 +71,6 @@ app.put('/nodes/:id', async (c) => {
     const node = updateNode(id, body);
     return c.json(node);
   } catch (err) {
-    if (err instanceof SyntaxError) {
-      return c.json({ error: 'Invalid JSON body' }, 400);
-    }
     return c.json({ error: (err as Error).message }, 500);
   }
 });
