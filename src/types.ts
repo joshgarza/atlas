@@ -7,6 +7,8 @@ import type {
   NodeStatusSchema,
   EdgeTypeSchema,
   EventTypeSchema,
+  SortFieldSchema,
+  SortOrderSchema,
   CreateNodeInputSchema,
   UpdateNodeInputSchema,
   CreateEdgeInputSchema,
@@ -78,8 +80,8 @@ export type CreateEventInput = z.infer<typeof CreateEventInputSchema>;
 
 // Advanced search + filtering
 
-export type SortField = 'activation' | 'recency' | 'created_at';
-export type SortOrder = 'asc' | 'desc';
+export type SortField = z.infer<typeof SortFieldSchema>;
+export type SortOrder = z.infer<typeof SortOrderSchema>;
 
 export interface SearchFilters {
   q?: string;

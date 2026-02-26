@@ -4,9 +4,15 @@ import type { SavedView, CreateSavedViewInput, UpdateSavedViewInput, SearchFilte
 
 /** Parse a raw DB row into a SavedView, handling JSON filters. */
 function parseViewRow(row: Record<string, unknown>): SavedView {
+  let filters: SearchFilters;
+  try {
+    filters = JSON.parse(row.filters as string) as SearchFilters;
+  } catch {
+    filters = {};
+  }
   return {
     ...row,
-    filters: JSON.parse(row.filters as string) as SearchFilters,
+    filters,
   } as SavedView;
 }
 

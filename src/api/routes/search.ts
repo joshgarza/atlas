@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { searchNodes, getRelatedNodes, getRecentNodes, advancedSearch } from '../../graph/query.js';
-import type { SearchFilters, NodeType, NodeStatus, SortField, SortOrder } from '../../types.js';
+import { NodeTypeSchema, NodeStatusSchema, SortFieldSchema, SortOrderSchema } from '../schemas.js';
+import type { SearchFilters } from '../../types.js';
 
 const app = new Hono();
 
@@ -31,10 +32,22 @@ app.get('/search/advanced', (c) => {
     if (q) filters.q = q;
 
     const type = c.req.query('type');
-    if (type) filters.type = type as NodeType;
+    if (type) {
+      const parsed = NodeTypeSchema.safeParse(type);
+      if (!parsed.success) {
+        return c.json({ error: `Invalid type: ${type}` }, 400);
+      }
+      filters.type = parsed.data;
+    }
 
     const status = c.req.query('status');
-    if (status) filters.status = status as NodeStatus;
+    if (status) {
+      const parsed = NodeStatusSchema.safeParse(status);
+      if (!parsed.success) {
+        return c.json({ error: `Invalid status: ${status}` }, 400);
+      }
+      filters.status = parsed.data;
+    }
 
     const activationMin = c.req.query('activation_min');
     if (activationMin) filters.activation_min = parseFloat(activationMin);
@@ -58,10 +71,22 @@ app.get('/search/advanced', (c) => {
     if (tags) filters.tags = tags.split(',');
 
     const sort = c.req.query('sort');
-    if (sort) filters.sort = sort as SortField;
+    if (sort) {
+      const parsed = SortFieldSchema.safeParse(sort);
+      if (!parsed.success) {
+        return c.json({ error: `Invalid sort: ${sort}` }, 400);
+      }
+      filters.sort = parsed.data;
+    }
 
     const order = c.req.query('order');
-    if (order) filters.order = order as SortOrder;
+    if (order) {
+      const parsed = SortOrderSchema.safeParse(order);
+      if (!parsed.success) {
+        return c.json({ error: `Invalid order: ${order}` }, 400);
+      }
+      filters.order = parsed.data;
+    }
 
     const limitStr = c.req.query('limit');
     if (limitStr) filters.limit = parseInt(limitStr, 10);

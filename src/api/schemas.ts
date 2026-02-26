@@ -10,6 +10,8 @@ export const NodeGranularitySchema = z.enum(['broad', 'standard', 'detailed']);
 export const NodeStatusSchema = z.enum(['active', 'superseded', 'deprecated']);
 export const EdgeTypeSchema = z.enum(['supports', 'contradicts', 'derived_from', 'related_to', 'supersedes', 'part_of']);
 export const EventTypeSchema = z.enum(['observation', 'query', 'mutation', 'archivist_action']);
+export const SortFieldSchema = z.enum(['activation', 'recency', 'created_at']);
+export const SortOrderSchema = z.enum(['asc', 'desc']);
 
 // --- Input schemas ---
 
