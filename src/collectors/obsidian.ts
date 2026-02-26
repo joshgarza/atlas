@@ -138,7 +138,7 @@ export function noteToEvent(note: ParsedNote, vaultRoot: string): CreateEventInp
       tags: note.tags,
       links: note.links,
     },
-    idempotency_key: `obsidian:${vaultRoot}:${note.filePath}`,
+    idempotency_key: `obsidian:${vaultRoot}:${note.filePath}:${Date.parse(note.modifiedAt)}`,
   };
 }
 
