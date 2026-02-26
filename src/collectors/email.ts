@@ -383,6 +383,7 @@ export function threadToEvent(thread: EmailThread, summary: string): CreateEvent
       labels: thread.labels,
       date: thread.date,
     },
+    idempotency_key: `email:${thread.id}:${thread.messages.length}`,
   };
 }
 
@@ -479,7 +480,9 @@ export async function importEmails(config: EmailConfig): Promise<ImportSummary> 
     }
   }
 
-  saveState(stateDir, { lastImportedAt: new Date().toISOString() });
+  if (summary.eventsCreated > 0) {
+    saveState(stateDir, { lastImportedAt: new Date().toISOString() });
+  }
 
   summary.durationMs = Date.now() - start;
   return summary;
