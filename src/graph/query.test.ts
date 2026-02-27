@@ -133,9 +133,13 @@ describe('getRecentNodes', () => {
     const a = makeNode({ title: 'A' });
     const b = makeNode({ title: 'B' });
 
-    // Access A first, then B — B should come first
+    // Access both nodes to populate last_accessed_at
     getNode(a.id);
     getNode(b.id);
+
+    // Set distinct timestamps to avoid non-deterministic ordering
+    db.prepare('UPDATE nodes SET last_accessed_at = ? WHERE id = ?').run('2025-01-01T00:00:00.000Z', a.id);
+    db.prepare('UPDATE nodes SET last_accessed_at = ? WHERE id = ?').run('2025-01-01T00:00:01.000Z', b.id);
 
     const recent = getRecentNodes();
     expect(recent[0].title).toBe('B');

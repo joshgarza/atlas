@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { getDb } from '../db/connection.js';
 import { createNode, getNode, updateNode, getNodeHistory, listNodes } from './nodes.js';
 
 function makeNode(overrides: Partial<Parameters<typeof createNode>[0]> = {}) {
@@ -139,8 +140,13 @@ describe('updateNode', () => {
 
 describe('listNodes', () => {
   it('returns all nodes in reverse chronological order', () => {
+    const db = getDb();
     const n1 = makeNode({ title: 'First' });
     const n2 = makeNode({ title: 'Second' });
+
+    // Set distinct timestamps to avoid non-deterministic ordering
+    db.prepare('UPDATE nodes SET created_at = ? WHERE id = ?').run('2025-01-01T00:00:00.000Z', n1.id);
+    db.prepare('UPDATE nodes SET created_at = ? WHERE id = ?').run('2025-01-01T00:00:01.000Z', n2.id);
 
     const nodes = listNodes();
     expect(nodes.length).toBe(2);
