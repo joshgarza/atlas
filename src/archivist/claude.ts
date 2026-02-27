@@ -9,10 +9,14 @@ export interface ClaudeCodeConfig {
   model: string;
   /** System prompt describing the Archivist's role and constraints */
   systemPrompt: string;
-  /** Tools Claude Code is permitted to use (empty array = pure reasoning, no tools) */
+  /**
+   * Tools Claude Code is permitted to use (empty array = pure reasoning, no tools).
+   *
+   * Default is empty: the Archivist operates in pure reasoning mode with no tool
+   * access. Callers should provide all necessary context in the prompt. This avoids
+   * the security gap where WebFetch could make mutating HTTP requests to the Atlas API.
+   */
   allowedTools: string[];
-  /** Maximum agentic turns per invocation */
-  maxTurns: number;
   /** Timeout for a single invocation in milliseconds */
   timeoutMs: number;
   /** Base URL for the Atlas API (referenced in system prompt for read-only access) */
@@ -24,12 +28,10 @@ export interface ClaudeCodeResult {
   result: string;
   costUsd: number;
   durationMs: number;
-  numTurns: number;
   sessionId: string;
 }
 
 const DEFAULT_ATLAS_BASE_URL = 'http://localhost:3001';
-const DEFAULT_MAX_TURNS = 3;
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_BUFFER_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -64,10 +66,9 @@ function buildSystemPrompt(atlasBaseUrl: string): string {
  * Create a Claude Code configuration with sensible defaults.
  *
  * Environment variables:
- * - ARCHIVIST_MODEL — Claude model (default: 'sonnet')
- * - ARCHIVIST_MAX_TURNS — Max agentic turns (default: 3)
- * - ARCHIVIST_TIMEOUT_MS — Invocation timeout in ms (default: 120000)
- * - ATLAS_BASE_URL — Atlas API base URL (default: 'http://localhost:3001')
+ * - ARCHIVIST_MODEL: Claude model (default: 'sonnet')
+ * - ARCHIVIST_TIMEOUT_MS: Invocation timeout in ms (default: 120000)
+ * - ATLAS_BASE_URL: Atlas API base URL (default: 'http://localhost:3001')
  */
 export function createClaudeCodeConfig(overrides?: Partial<ClaudeCodeConfig>): ClaudeCodeConfig {
   const atlasBaseUrl = overrides?.atlasBaseUrl
@@ -77,8 +78,7 @@ export function createClaudeCodeConfig(overrides?: Partial<ClaudeCodeConfig>): C
   const defaults: ClaudeCodeConfig = {
     model: process.env.ARCHIVIST_MODEL ?? 'sonnet',
     systemPrompt: buildSystemPrompt(atlasBaseUrl),
-    allowedTools: ['WebFetch'],
-    maxTurns: parseInt(process.env.ARCHIVIST_MAX_TURNS ?? String(DEFAULT_MAX_TURNS), 10),
+    allowedTools: [],
     timeoutMs: parseInt(process.env.ARCHIVIST_TIMEOUT_MS ?? String(DEFAULT_TIMEOUT_MS), 10),
     atlasBaseUrl,
   };
@@ -92,7 +92,7 @@ export function createClaudeCodeConfig(overrides?: Partial<ClaudeCodeConfig>): C
  * Spawns `claude -p` in non-interactive mode with:
  * - JSON output format for structured parsing
  * - Model selection via --model
- * - Tool restrictions via --allowedTools (default: only WebFetch for read-only API access)
+ * - Tool restrictions via --tools "" (default: pure reasoning, no tools)
  * - No filesystem access, no shell access
  */
 export async function queryClaudeCode(
@@ -103,13 +103,15 @@ export async function queryClaudeCode(
     '-p', prompt,
     '--output-format', 'json',
     '--model', config.model,
-    '--max-turns', String(config.maxTurns),
     '--system-prompt', config.systemPrompt,
   ];
 
-  // Permission boundaries: restrict to only the specified tools
+  // Permission boundaries: restrict available tools
   if (config.allowedTools.length > 0) {
     args.push('--allowedTools', config.allowedTools.join(','));
+  } else {
+    // Pure reasoning mode: disable all tools
+    args.push('--tools', '');
   }
 
   let stdout: string;
@@ -128,7 +130,14 @@ export async function queryClaudeCode(
     throw new Error(`Claude Code invocation failed: ${error.message}`);
   }
 
-  const response = JSON.parse(stdout) as Record<string, unknown>;
+  let response: Record<string, unknown>;
+  try {
+    response = JSON.parse(stdout) as Record<string, unknown>;
+  } catch {
+    throw new Error(
+      `Claude Code returned invalid JSON (${stdout.length} bytes): ${stdout.slice(0, 200)}`,
+    );
+  }
 
   if (response.is_error) {
     throw new Error(`Claude Code error: ${String(response.result ?? 'unknown error')}`);
@@ -138,7 +147,6 @@ export async function queryClaudeCode(
     result: String(response.result ?? ''),
     costUsd: Number(response.cost_usd ?? 0),
     durationMs: Number(response.duration_ms ?? 0),
-    numTurns: Number(response.num_turns ?? 1),
     sessionId: String(response.session_id ?? ''),
   };
 }
