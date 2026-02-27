@@ -39,7 +39,6 @@ export interface ArchivistStatus {
   claudeCode: {
     model: string;
     allowedTools: string[];
-    maxTurns: number;
     timeoutMs: number;
     atlasBaseUrl: string;
   };
@@ -122,7 +121,6 @@ export function getArchivistStatus(): ArchivistStatus {
     claudeCode: {
       model: claudeCodeConfig.model,
       allowedTools: claudeCodeConfig.allowedTools,
-      maxTurns: claudeCodeConfig.maxTurns,
       timeoutMs: claudeCodeConfig.timeoutMs,
       atlasBaseUrl: claudeCodeConfig.atlasBaseUrl,
     },
