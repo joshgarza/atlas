@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import { createNode, getNode, updateNode, listNodes, getNodeHistory } from '../../graph/nodes.js';
+import { createNode, getNode, updateNode, listNodes, countNodes, getNodeHistory } from '../../graph/nodes.js';
 import { getEdgesByNode } from '../../graph/edges.js';
 import { CreateNodeInputSchema, UpdateNodeInputSchema, NodeListQuerySchema, NodeGetQuerySchema, validationHook } from '../schemas.js';
 
@@ -22,7 +22,8 @@ app.get('/nodes', zValidator('query', NodeListQuerySchema, validationHook), (c) 
   try {
     const query = c.req.valid('query');
     const nodes = listNodes(query);
-    return c.json(nodes);
+    const total = countNodes(query);
+    return c.json({ nodes, total });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
   }

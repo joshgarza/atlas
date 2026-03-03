@@ -7,6 +7,7 @@ import type {
   UpdateNodeInput,
   CreateEdgeInput,
   CreateEventInput,
+  PaginatedNodes,
   ArchivistStatus,
   HealthCheck,
   NodeType,
@@ -51,14 +52,14 @@ export interface ListNodesParams {
   offset?: number;
 }
 
-export function listNodes(params: ListNodesParams = {}): Promise<Node[]> {
+export function listNodes(params: ListNodesParams = {}): Promise<PaginatedNodes> {
   const qs = new URLSearchParams();
   if (params.type) qs.set('type', params.type);
   if (params.status) qs.set('status', params.status);
   if (params.limit != null) qs.set('limit', String(params.limit));
   if (params.offset != null) qs.set('offset', String(params.offset));
   const query = qs.toString();
-  return request<Node[]>(`/nodes${query ? `?${query}` : ''}`);
+  return request<PaginatedNodes>(`/nodes${query ? `?${query}` : ''}`);
 }
 
 export function getNode(id: string, peek = false): Promise<Node> {

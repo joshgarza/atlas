@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getDb } from '../db/connection.js';
-import { createNode, getNode, updateNode, getNodeHistory, listNodes } from './nodes.js';
+import { createNode, getNode, updateNode, getNodeHistory, listNodes, countNodes } from './nodes.js';
 
 function makeNode(overrides: Partial<Parameters<typeof createNode>[0]> = {}) {
   return createNode({
@@ -180,5 +180,33 @@ describe('listNodes', () => {
 
     const page = listNodes({ limit: 2, offset: 2 });
     expect(page.length).toBe(2);
+  });
+});
+
+describe('countNodes', () => {
+  it('counts all nodes', () => {
+    makeNode({ title: 'A' });
+    makeNode({ title: 'B' });
+
+    const total = countNodes();
+    expect(total).toBeGreaterThanOrEqual(2);
+  });
+
+  it('filters by type', () => {
+    makeNode({ type: 'concept', title: 'C1' });
+    makeNode({ type: 'entity', title: 'E1' });
+
+    const concepts = countNodes({ type: 'concept' });
+    const entities = countNodes({ type: 'entity' });
+    expect(concepts).toBeGreaterThanOrEqual(1);
+    expect(entities).toBeGreaterThanOrEqual(1);
+  });
+
+  it('filters by status', () => {
+    const node = makeNode({ title: 'CountStatus' });
+    updateNode(node.id, { status: 'superseded' });
+
+    const superseded = countNodes({ status: 'superseded' });
+    expect(superseded).toBeGreaterThanOrEqual(1);
   });
 });

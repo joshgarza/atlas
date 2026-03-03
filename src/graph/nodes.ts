@@ -221,3 +221,30 @@ export function listNodes(opts?: {
 
   return rows.map((row) => toNodeWithTags(db, row));
 }
+
+export function countNodes(opts?: {
+  type?: NodeType;
+  status?: NodeStatus;
+}): number {
+  const db = getDb();
+
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (opts?.type) {
+    conditions.push('type = ?');
+    params.push(opts.type);
+  }
+  if (opts?.status) {
+    conditions.push('status = ?');
+    params.push(opts.status);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const row = db
+    .prepare(`SELECT COUNT(*) as count FROM nodes ${where}`)
+    .get(...params) as { count: number };
+
+  return row.count;
+}
