@@ -423,3 +423,82 @@ describe('DELETE /archivist/schedule', () => {
     assert.equal(status.running, false);
   });
 });
+
+// --- Session Briefing ---
+
+describe('GET /session/briefing', () => {
+  it('returns 200 with all four sections', async () => {
+    const res = await get('/session/briefing');
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(Array.isArray(body.recentEvents));
+    assert.ok(Array.isArray(body.highActivationNodes));
+    assert.ok(Array.isArray(body.recentNodes));
+    assert.ok(body.archivistStatus);
+    assert.ok(typeof body.archivistStatus.unprocessedEventCount === 'number');
+    assert.ok(typeof body.archivistStatus.schedulerRunning === 'boolean');
+  });
+
+  it('includes high-activation nodes with compact fields', async () => {
+    const res = await get('/session/briefing');
+    const body = await res.json();
+    if (body.highActivationNodes.length > 0) {
+      const node = body.highActivationNodes[0];
+      assert.ok(node.id);
+      assert.ok(node.title);
+      assert.ok(node.type);
+      assert.ok(typeof node.activation === 'number');
+      assert.ok(Array.isArray(node.tags));
+      // Should NOT include full content
+      assert.equal(node.content, undefined);
+    }
+  });
+
+  it('includes recent nodes without content field', async () => {
+    const res = await get('/session/briefing');
+    const body = await res.json();
+    if (body.recentNodes.length > 0) {
+      const node = body.recentNodes[0];
+      assert.ok(node.id);
+      assert.ok(node.title);
+      assert.ok(node.type);
+      assert.equal(node.content, undefined);
+    }
+  });
+
+  it('truncates event content to ~100 chars', async () => {
+    // Create an event with long content
+    const longContent = 'A'.repeat(200);
+    await post('/events', {
+      type: 'observation',
+      source: 'test',
+      content: longContent,
+    });
+
+    const res = await get('/session/briefing');
+    const body = await res.json();
+    const longEvent = body.recentEvents.find(
+      (e: { source: string }) => e.source === 'test'
+    );
+    if (longEvent) {
+      assert.ok(longEvent.preview.length <= 104); // 100 + '...'
+      assert.ok(longEvent.preview.endsWith('...'));
+    }
+  });
+
+  it('excludes archivist_action events', async () => {
+    // Create an archivist_action event
+    await post('/events', {
+      type: 'archivist_action',
+      source: 'archivist',
+      content: 'internal action',
+    });
+
+    const res = await get('/session/briefing');
+    const body = await res.json();
+    const archivistEvents = body.recentEvents.filter(
+      (e: { type: string }) => e.type === 'archivist_action'
+    );
+    assert.equal(archivistEvents.length, 0);
+  });
+});
