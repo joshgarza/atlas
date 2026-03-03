@@ -45,26 +45,28 @@ export function seedPersonality(): void {
     return;
   }
 
-  const node = createNode({
-    type: 'entity',
-    title: 'Digital Chief of Staff',
-    content: PERSONALITY_CONTENT,
-    granularity: 'detailed',
-    tags: ['personality', 'identity', 'chief-of-staff', 'system', PERSONALITY_TAG],
-    metadata: { source: 'seed', role: 'personality' },
-  });
-
-  // Link to any existing goal or preference nodes
-  const relatedNodes = db.prepare(
-    `SELECT id FROM nodes WHERE type IN ('goal', 'preference') AND status = 'active'`
-  ).all() as { id: string }[];
-
-  for (const related of relatedNodes) {
-    createEdge({
-      source_id: node.id,
-      target_id: related.id,
-      type: 'related_to',
-      metadata: { source: 'seed' },
+  db.transaction(() => {
+    const node = createNode({
+      type: 'entity',
+      title: 'Digital Chief of Staff',
+      content: PERSONALITY_CONTENT,
+      granularity: 'detailed',
+      tags: ['personality', 'identity', 'chief-of-staff', 'system', PERSONALITY_TAG],
+      metadata: { source: 'seed', role: 'personality' },
     });
-  }
+
+    // Link to any existing goal or preference nodes
+    const relatedNodes = db.prepare(
+      `SELECT id FROM nodes WHERE type IN ('goal', 'preference') AND status = 'active'`
+    ).all() as { id: string }[];
+
+    for (const related of relatedNodes) {
+      createEdge({
+        source_id: node.id,
+        target_id: related.id,
+        type: 'related_to',
+        metadata: { source: 'seed' },
+      });
+    }
+  })();
 }

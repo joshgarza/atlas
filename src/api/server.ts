@@ -7,7 +7,11 @@ const port = parseInt(process.env.PORT ?? '3001', 10);
 
 serve({ fetch: app.fetch, port }, () => {
   console.log(`Atlas server running on http://localhost:${port}`);
-  seedPersonality();
+  try {
+    seedPersonality();
+  } catch (err) {
+    console.error('[seed] personality seed failed:', (err as Error).message);
+  }
   startScheduler();
 });
 
