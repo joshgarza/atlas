@@ -2,6 +2,7 @@ import { ulid } from 'ulid';
 import type Database from 'better-sqlite3';
 import { getDb } from '../db/connection.js';
 import { bumpActivation } from './activation.js';
+import { embedNodeAsync } from './embeddings.js';
 import type {
   Node,
   NodeHistory,
@@ -69,6 +70,9 @@ export function createNode(input: CreateNodeInput): NodeWithTags {
     const row = db.prepare('SELECT * FROM nodes WHERE id = ?').get(id) as Record<string, unknown>;
     return toNodeWithTags(db, row);
   })();
+
+  // Fire-and-forget embedding generation
+  embedNodeAsync(node.id, node.title, node.content);
 
   return node;
 }
@@ -170,6 +174,11 @@ export function updateNode(id: string, input: UpdateNodeInput): NodeWithTags {
     const row = db.prepare('SELECT * FROM nodes WHERE id = ?').get(id) as Record<string, unknown>;
     return toNodeWithTags(db, row);
   })();
+
+  // Re-embed if title or content changed
+  if (input.title !== undefined || input.content !== undefined) {
+    embedNodeAsync(updated.id, updated.title, updated.content);
+  }
 
   return updated;
 }
