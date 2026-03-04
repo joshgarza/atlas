@@ -6,6 +6,7 @@ import searchRoutes from './routes/search.js';
 import archivistRoutes from './routes/archivist.js';
 import uiRoutes from './routes/ui.js';
 import viewRoutes from './routes/views.js';
+import sessionRoutes from './routes/session.js';
 
 const app = new Hono();
 
@@ -22,5 +23,6 @@ app.route('/', searchRoutes);
 app.route('/', archivistRoutes);
 app.route('/', uiRoutes);
 app.route('/', viewRoutes);
+app.route('/', sessionRoutes);
 
 export default app;
