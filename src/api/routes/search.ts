@@ -125,6 +125,9 @@ app.get('/search/semantic', async (c) => {
 
     const limitStr = c.req.query('limit');
     const limit = limitStr ? parseInt(limitStr, 10) : undefined;
+    if (limit !== undefined && (isNaN(limit) || limit < 1)) {
+      return c.json({ error: 'Invalid limit parameter' }, 400);
+    }
 
     const results = await semanticSearch(q, limit);
     return c.json(results);

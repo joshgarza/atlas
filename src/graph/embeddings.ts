@@ -55,12 +55,12 @@ export async function generateEmbedding(text: string): Promise<Float32Array> {
 export function storeEmbedding(nodeId: string, embedding: Float32Array): void {
   const db = getDb();
 
-  // Delete existing embedding for this node (upsert)
-  db.prepare('DELETE FROM node_embeddings WHERE node_id = ?').run(nodeId);
-
-  db.prepare(
-    'INSERT INTO node_embeddings (node_id, embedding) VALUES (?, ?)'
-  ).run(nodeId, Buffer.from(embedding.buffer));
+  db.transaction(() => {
+    db.prepare('DELETE FROM node_embeddings WHERE node_id = ?').run(nodeId);
+    db.prepare(
+      'INSERT INTO node_embeddings (node_id, embedding) VALUES (?, ?)'
+    ).run(nodeId, Buffer.from(embedding.buffer, embedding.byteOffset, embedding.byteLength));
+  })();
 }
 
 /** Generate and store an embedding for a node. Fire-and-forget safe. */

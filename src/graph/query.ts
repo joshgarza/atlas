@@ -238,7 +238,7 @@ export async function semanticSearch(query: string, limit = 10): Promise<Semanti
        ORDER BY distance
        LIMIT ?`
     )
-    .all(Buffer.from(queryEmbedding.buffer), limit) as Array<{ node_id: string; distance: number }>;
+    .all(Buffer.from(queryEmbedding.buffer, queryEmbedding.byteOffset, queryEmbedding.byteLength), limit) as Array<{ node_id: string; distance: number }>;
 
   const results: SemanticSearchResult[] = [];
   for (const row of rows) {

@@ -134,4 +134,17 @@ export function migrate(db: Database.Database): void {
       );
     `);
   }
+
+  // Clean up orphaned embeddings when a node is deleted
+  const embeddingsTriggerExists = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='trigger' AND name='nodes_embeddings_delete'"
+  ).get();
+
+  if (!embeddingsTriggerExists) {
+    db.exec(`
+      CREATE TRIGGER nodes_embeddings_delete AFTER DELETE ON nodes BEGIN
+        DELETE FROM node_embeddings WHERE node_id = old.id;
+      END;
+    `);
+  }
 }
