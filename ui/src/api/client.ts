@@ -12,6 +12,7 @@ import type {
   HealthCheck,
   NodeType,
   NodeStatus,
+  EdgeType,
 } from './types';
 
 const BASE = '/api';
@@ -90,6 +91,21 @@ export function getNodeEdges(id: string): Promise<Edge[]> {
 }
 
 // --- Edges ---
+
+export interface ListEdgesParams {
+  type?: EdgeType;
+  limit?: number;
+  offset?: number;
+}
+
+export function listEdges(params: ListEdgesParams = {}): Promise<Edge[]> {
+  const qs = new URLSearchParams();
+  if (params.type) qs.set('type', params.type);
+  if (params.limit != null) qs.set('limit', String(params.limit));
+  if (params.offset != null) qs.set('offset', String(params.offset));
+  const query = qs.toString();
+  return request<Edge[]>(`/edges${query ? `?${query}` : ''}`);
+}
 
 export function createEdge(input: CreateEdgeInput): Promise<Edge> {
   return request<Edge>('/edges', {
