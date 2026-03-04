@@ -46,7 +46,7 @@ export default function GraphPage() {
 
     const loadAndRender = async () => {
       try {
-        const [nodes, edges] = await Promise.all([
+        const [{ nodes }, edges] = await Promise.all([
           listNodes({ limit: 500 }),
           listEdges({ limit: 1000 }),
         ]);
