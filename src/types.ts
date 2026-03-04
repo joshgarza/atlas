@@ -68,6 +68,7 @@ export interface Event {
   content: string;
   metadata: Record<string, unknown> | null;
   idempotency_key: string | null;
+  content_hash: string | null;
   created_at: string;
 }
 
