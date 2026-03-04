@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { searchNodes } from '../api/client';
 import type { Node } from '../api/types';
 
@@ -75,7 +76,9 @@ export default function SearchPage() {
                 borderBottom: '1px solid var(--color-border)',
               }}
             >
-              <div style={{ fontWeight: 500 }}>{node.title}</div>
+              <div style={{ fontWeight: 500 }}>
+                <Link to={`/nodes/${node.id}`}>{node.title}</Link>
+              </div>
               <div style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
                 {node.type} &middot; {node.status} &middot; activation {node.activation.toFixed(2)}
               </div>
