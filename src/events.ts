@@ -16,7 +16,7 @@ export function createEvent(input: CreateEventInput): CreateEventResult {
   if (key) {
     const existing = db.prepare(
       'SELECT * FROM events WHERE idempotency_key = ?'
-    ).get(key) as (Event & { metadata: string | null }) | undefined;
+    ).get(key) as (Event & { metadata: string | null; content_hash: string | null }) | undefined;
 
     if (existing) {
       return {
@@ -89,7 +89,7 @@ export function listEvents(opts?: {
 
   params.push(limit, offset);
 
-  const rows = stmt.all(...params) as Array<Event & { metadata: string | null; idempotency_key: string | null; content_hash: string }>;
+  const rows = stmt.all(...params) as Array<Event & { metadata: string | null; idempotency_key: string | null; content_hash: string | null }>;
 
   return rows.map((row) => ({
     ...row,
