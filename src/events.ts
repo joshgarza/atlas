@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import { getDb } from './db/connection.js';
 import type { Event, EventType, CreateEventInput } from './types.js';
@@ -30,10 +31,11 @@ export function createEvent(input: CreateEventInput): CreateEventResult {
 
   const id = ulid();
   const now = new Date().toISOString();
+  const contentHash = createHash('sha256').update(input.content).digest('hex');
 
   const stmt = db.prepare(`
-    INSERT INTO events (id, type, source, content, metadata, idempotency_key, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO events (id, type, source, content, metadata, idempotency_key, content_hash, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   stmt.run(
@@ -43,6 +45,7 @@ export function createEvent(input: CreateEventInput): CreateEventResult {
     input.content,
     input.metadata ? JSON.stringify(input.metadata) : null,
     key,
+    contentHash,
     now,
   );
 
@@ -53,6 +56,7 @@ export function createEvent(input: CreateEventInput): CreateEventResult {
     content: input.content,
     metadata: input.metadata ?? null,
     idempotency_key: key,
+    content_hash: contentHash,
     created_at: now,
   };
 
@@ -85,11 +89,12 @@ export function listEvents(opts?: {
 
   params.push(limit, offset);
 
-  const rows = stmt.all(...params) as Array<Event & { metadata: string | null; idempotency_key: string | null }>;
+  const rows = stmt.all(...params) as Array<Event & { metadata: string | null; idempotency_key: string | null; content_hash: string }>;
 
   return rows.map((row) => ({
     ...row,
     metadata: row.metadata ? JSON.parse(row.metadata) : null,
     idempotency_key: row.idempotency_key ?? null,
+    content_hash: row.content_hash,
   }));
 }

@@ -62,6 +62,49 @@ describe('createEvent', () => {
     expect(second.content).toBe('original content');
   });
 
+  it('includes content_hash on created events', () => {
+    const { event } = createEvent({
+      type: 'observation',
+      source: 'test',
+      content: 'hash me',
+    });
+
+    expect(event.content_hash).toBeTruthy();
+    expect(event.content_hash).toHaveLength(64); // SHA-256 hex digest
+  });
+
+  it('produces the same hash for identical content', () => {
+    const { event: first } = createEvent({
+      type: 'observation',
+      source: 'test',
+      content: 'identical content',
+    });
+
+    const { event: second } = createEvent({
+      type: 'query',
+      source: 'other',
+      content: 'identical content',
+    });
+
+    expect(first.content_hash).toBe(second.content_hash);
+  });
+
+  it('produces different hashes for different content', () => {
+    const { event: first } = createEvent({
+      type: 'observation',
+      source: 'test',
+      content: 'content A',
+    });
+
+    const { event: second } = createEvent({
+      type: 'observation',
+      source: 'test',
+      content: 'content B',
+    });
+
+    expect(first.content_hash).not.toBe(second.content_hash);
+  });
+
   it('allows duplicate events without idempotency key', () => {
     const { event: first } = createEvent({
       type: 'observation',

@@ -85,6 +85,16 @@ export function migrate(db: Database.Database): void {
     db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_events_idempotency_key ON events(idempotency_key) WHERE idempotency_key IS NOT NULL');
   }
 
+  // Add content_hash column to events (for content-based deduplication)
+  const hasContentHash = db.prepare(
+    "SELECT COUNT(*) as cnt FROM pragma_table_info('events') WHERE name = 'content_hash'"
+  ).get() as { cnt: number };
+
+  if (hasContentHash.cnt === 0) {
+    db.exec('ALTER TABLE events ADD COLUMN content_hash TEXT');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_events_content_hash ON events(content_hash)');
+  }
+
   // Saved views table for persisting search filters
   db.exec(`
     CREATE TABLE IF NOT EXISTS saved_views (
