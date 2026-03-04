@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { listNodes } from '../api/client';
 import type { Node } from '../api/types';
 
@@ -48,7 +49,9 @@ export default function NodesPage() {
             <tbody>
               {nodes.map((node) => (
                 <tr key={node.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{node.title}</td>
+                  <td style={{ padding: '0.5rem 0.75rem' }}>
+                    <Link to={`/nodes/${node.id}`}>{node.title}</Link>
+                  </td>
                   <td style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-muted)' }}>
                     {node.type}
                   </td>
