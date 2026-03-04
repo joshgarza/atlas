@@ -28,17 +28,20 @@ export default function NodeDetailPage() {
         setNode(nodeData);
         setHistory(historyData);
 
-        const edgesWithNodes: EdgeWithNode[] = await Promise.all(
-          edgesData.map(async (edge) => {
-            const otherId = edge.source_id === id ? edge.target_id : edge.source_id;
-            try {
-              const otherNode = await getNode(otherId, true);
-              return { ...edge, otherNode: { id: otherNode.id, title: otherNode.title } };
-            } catch {
-              return { ...edge, otherNode: null };
-            }
-          }),
-        );
+        const otherIds = [...new Set(edgesData.map((edge) =>
+          edge.source_id === id ? edge.target_id : edge.source_id
+        ))];
+        const results = await Promise.allSettled(otherIds.map((nid) => getNode(nid, true)));
+        const nodeMap = new Map<string, { id: string; title: string }>();
+        results.forEach((result, i) => {
+          if (result.status === 'fulfilled') {
+            nodeMap.set(otherIds[i], { id: result.value.id, title: result.value.title });
+          }
+        });
+        const edgesWithNodes: EdgeWithNode[] = edgesData.map((edge) => {
+          const otherId = edge.source_id === id ? edge.target_id : edge.source_id;
+          return { ...edge, otherNode: nodeMap.get(otherId) ?? null };
+        });
         setEdges(edgesWithNodes);
       })
       .catch((err) => {
