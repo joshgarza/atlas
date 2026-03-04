@@ -1,24 +1,15 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { createEdge, getEdge, listEdges, updateEdge, deleteEdge } from '../../graph/edges.js';
-import type { EdgeType } from '../../types.js';
-import { CreateEdgeInputSchema, UpdateEdgeInputSchema, validationHook } from '../schemas.js';
+import { CreateEdgeInputSchema, UpdateEdgeInputSchema, EdgeListQuerySchema, validationHook } from '../schemas.js';
 
 const app = new Hono();
 
 // List all edges
-app.get('/edges', (c) => {
+app.get('/edges', zValidator('query', EdgeListQuerySchema, validationHook), (c) => {
   try {
-    const type = c.req.query('type') as EdgeType | undefined;
-    const limitStr = c.req.query('limit');
-    const offsetStr = c.req.query('offset');
-
-    const opts: { type?: EdgeType; limit?: number; offset?: number } = {};
-    if (type) opts.type = type;
-    if (limitStr) opts.limit = parseInt(limitStr, 10);
-    if (offsetStr) opts.offset = parseInt(offsetStr, 10);
-
-    const edges = listEdges(opts);
+    const query = c.req.valid('query');
+    const edges = listEdges(query);
     return c.json(edges);
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
