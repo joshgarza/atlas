@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } from 'd3-force';
 import { select } from 'd3-selection';
-import { zoom, zoomIdentity } from 'd3-zoom';
+import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { listNodes } from '../api/client';
 import { listEdges } from '../api/client';
 import type { Node, Edge } from '../api/types';
@@ -48,7 +48,7 @@ export default function GraphPage() {
       try {
         const [nodes, edges] = await Promise.all([
           listNodes({ limit: 500 }),
-          listEdges(),
+          listEdges({ limit: 1000 }),
         ]);
 
         if (stopped) return;
@@ -168,18 +168,8 @@ export default function GraphPage() {
 
       svgSel.on('mousemove', (event) => {
         if (!dragTarget) return;
-        const [mx, my] = (() => {
-          const transform = g.attr('transform');
-          if (!transform) return [event.offsetX, event.offsetY];
-          const match = transform.match(
-            /translate\(([^,]+),\s*([^)]+)\)\s*scale\(([^)]+)\)/,
-          );
-          if (!match) return [event.offsetX, event.offsetY];
-          const tx = parseFloat(match[1]);
-          const ty = parseFloat(match[2]);
-          const s = parseFloat(match[3]);
-          return [(event.offsetX - tx) / s, (event.offsetY - ty) / s];
-        })();
+        const t = zoomTransform(svgEl);
+        const [mx, my] = t.invert([event.offsetX, event.offsetY]);
         dragTarget.fx = mx;
         dragTarget.fy = my;
       });
