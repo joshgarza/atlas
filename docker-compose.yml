@@ -49,6 +49,15 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  ui:
+    build: ui
+    ports:
+      - "8080:80"
+    depends_on:
+      atlas:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   atlas-data:
   email-state:
