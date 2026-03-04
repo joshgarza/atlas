@@ -120,4 +120,31 @@ export function migrate(db: Database.Database): void {
       END;
     `);
   }
+
+  // Vector embeddings table for semantic search (sqlite-vec)
+  const vecExists = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='node_embeddings'"
+  ).get();
+
+  if (!vecExists) {
+    db.exec(`
+      CREATE VIRTUAL TABLE node_embeddings USING vec0(
+        node_id TEXT PRIMARY KEY,
+        embedding float[1024]
+      );
+    `);
+  }
+
+  // Clean up orphaned embeddings when a node is deleted
+  const embeddingsTriggerExists = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='trigger' AND name='nodes_embeddings_delete'"
+  ).get();
+
+  if (!embeddingsTriggerExists) {
+    db.exec(`
+      CREATE TRIGGER nodes_embeddings_delete AFTER DELETE ON nodes BEGIN
+        DELETE FROM node_embeddings WHERE node_id = old.id;
+      END;
+    `);
+  }
 }

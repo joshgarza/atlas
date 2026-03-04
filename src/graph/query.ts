@@ -1,7 +1,12 @@
 import { getDb } from '../db/connection.js';
 import { getNodeTags } from './nodes.js';
+import { generateEmbedding } from './embeddings.js';
 import type { Node, SearchFilters } from '../types.js';
 import type { NodeWithTags } from './nodes.js';
+
+export interface SemanticSearchResult extends NodeWithTags {
+  similarity: number;
+}
 
 /** Parse a raw DB row into a Node, handling JSON metadata. */
 function parseNodeRow(row: Record<string, unknown>): Node {
@@ -214,4 +219,39 @@ export function getRecentNodes(limit = 20): NodeWithTags[] {
     .all(limit) as Record<string, unknown>[];
 
   return rows.map(toNodeWithTags);
+}
+
+/**
+ * Semantic search over nodes using vector embeddings.
+ * Embeds the query string via Voyage API, then performs KNN search via sqlite-vec.
+ * Returns nodes ranked by cosine similarity.
+ */
+export async function semanticSearch(query: string, limit = 10): Promise<SemanticSearchResult[]> {
+  const db = getDb();
+
+  const queryEmbedding = await generateEmbedding(query);
+
+  const queryBuf = Buffer.from(queryEmbedding.buffer, queryEmbedding.byteOffset, queryEmbedding.byteLength);
+
+  const rows = db
+    .prepare(
+      `SELECT node_id, vec_distance_cosine(embedding, ?) as distance
+       FROM node_embeddings
+       ORDER BY distance
+       LIMIT ?`
+    )
+    .all(queryBuf, limit) as Array<{ node_id: string; distance: number }>;
+
+  const results: SemanticSearchResult[] = [];
+  for (const row of rows) {
+    const nodeRow = db.prepare('SELECT * FROM nodes WHERE id = ?').get(row.node_id) as Record<string, unknown> | undefined;
+    if (nodeRow) {
+      const nodeWithTags = toNodeWithTags(nodeRow);
+      // vec_distance_cosine returns [0, 2]: 0=identical, 2=opposite
+      // cosine similarity = 1 - cosine_distance (range [-1, 1])
+      results.push({ ...nodeWithTags, similarity: 1 - row.distance });
+    }
+  }
+
+  return results;
 }

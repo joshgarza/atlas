@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { searchNodes, getRelatedNodes, getRecentNodes, advancedSearch } from '../../graph/query.js';
+import { searchNodes, getRelatedNodes, getRecentNodes, advancedSearch, semanticSearch } from '../../graph/query.js';
 import { NodeTypeSchema, NodeStatusSchema, SortFieldSchema, SortOrderSchema } from '../schemas.js';
 import type { SearchFilters } from '../../types.js';
 
@@ -110,6 +110,27 @@ app.get('/search/related/:id', (c) => {
 
     const nodes = getRelatedNodes(id, depth);
     return c.json(nodes);
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+// Semantic search via vector embeddings
+app.get('/search/semantic', async (c) => {
+  try {
+    const q = c.req.query('q');
+    if (!q) {
+      return c.json({ error: 'Query parameter "q" is required' }, 400);
+    }
+
+    const limitStr = c.req.query('limit');
+    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
+    if (limit !== undefined && (isNaN(limit) || limit < 1)) {
+      return c.json({ error: 'Invalid limit parameter' }, 400);
+    }
+
+    const results = await semanticSearch(q, limit);
+    return c.json(results);
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
   }
