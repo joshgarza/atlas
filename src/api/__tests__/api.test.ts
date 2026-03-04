@@ -108,34 +108,38 @@ describe('POST /nodes', () => {
 });
 
 describe('GET /nodes', () => {
-  it('lists all nodes', async () => {
+  it('lists all nodes with total count', async () => {
     const res = await get('/nodes');
     assert.equal(res.status, 200);
-    const nodes = await res.json();
-    assert.ok(Array.isArray(nodes));
-    assert.equal(nodes.length, 2);
+    const body = await res.json();
+    assert.ok(Array.isArray(body.nodes));
+    assert.equal(body.nodes.length, 2);
+    assert.equal(body.total, 2);
   });
 
   it('filters by type', async () => {
     const res = await get('/nodes?type=concept');
     assert.equal(res.status, 200);
-    const nodes = await res.json();
-    assert.equal(nodes.length, 1);
-    assert.equal(nodes[0].type, 'concept');
+    const body = await res.json();
+    assert.equal(body.nodes.length, 1);
+    assert.equal(body.nodes[0].type, 'concept');
+    assert.equal(body.total, 1);
   });
 
   it('filters by status', async () => {
     const res = await get('/nodes?status=active');
     assert.equal(res.status, 200);
-    const nodes = await res.json();
-    assert.equal(nodes.length, 2);
+    const body = await res.json();
+    assert.equal(body.nodes.length, 2);
+    assert.equal(body.total, 2);
   });
 
-  it('supports limit and offset', async () => {
+  it('supports limit and offset with total', async () => {
     const res = await get('/nodes?limit=1&offset=0');
     assert.equal(res.status, 200);
-    const nodes = await res.json();
-    assert.equal(nodes.length, 1);
+    const body = await res.json();
+    assert.equal(body.nodes.length, 1);
+    assert.equal(body.total, 2);
   });
 
   it('rejects invalid type', async () => {

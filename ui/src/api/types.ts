@@ -106,6 +106,11 @@ export interface ArchivistStatus {
   };
 }
 
+export interface PaginatedNodes {
+  nodes: Node[];
+  total: number;
+}
+
 export interface HealthCheck {
   status: string;
 }
