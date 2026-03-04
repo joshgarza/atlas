@@ -137,6 +137,20 @@ describe('GET /nodes', () => {
     const nodes = await res.json();
     assert.equal(nodes.length, 1);
   });
+
+  it('rejects invalid type', async () => {
+    const res = await get('/nodes?type=INVALID');
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error);
+  });
+
+  it('rejects non-numeric limit', async () => {
+    const res = await get('/nodes?limit=abc');
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error);
+  });
 });
 
 describe('GET /nodes/:id', () => {
@@ -242,6 +256,22 @@ describe('POST /edges', () => {
       type: 'related_to',
     });
     assert.equal(res.status, 500);
+    const body = await res.json();
+    assert.ok(body.error);
+  });
+});
+
+describe('GET /edges', () => {
+  it('rejects invalid edge type', async () => {
+    const res = await get('/edges?type=INVALID');
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error);
+  });
+
+  it('rejects non-numeric limit', async () => {
+    const res = await get('/edges?limit=abc');
+    assert.equal(res.status, 400);
     const body = await res.json();
     assert.ok(body.error);
   });

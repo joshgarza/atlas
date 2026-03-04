@@ -59,6 +59,55 @@ export const CreateEventInputSchema = z.object({
   idempotency_key: z.string().optional(),
 });
 
+// --- Query parameter schemas ---
+
+export const NodeListQuerySchema = z.object({
+  type: NodeTypeSchema.optional(),
+  status: NodeStatusSchema.optional(),
+  limit: z.string().min(1).pipe(z.coerce.number().int().positive()).optional(),
+  offset: z.string().min(1).pipe(z.coerce.number().int().nonnegative()).optional(),
+});
+
+export const NodeGetQuerySchema = z.object({
+  peek: z.enum(['true', 'false']).transform(v => v === 'true').optional(),
+});
+
+export const EdgeListQuerySchema = z.object({
+  type: EdgeTypeSchema.optional(),
+  limit: z.string().min(1).pipe(z.coerce.number().int().positive()).optional(),
+  offset: z.string().min(1).pipe(z.coerce.number().int().nonnegative()).optional(),
+});
+
+export const SearchQuerySchema = z.object({
+  q: z.string({ error: 'Query parameter "q" is required' }).min(1, 'Query parameter "q" is required'),
+  limit: z.string().min(1).pipe(z.coerce.number().int().positive()).optional(),
+});
+
+export const AdvancedSearchQuerySchema = z.object({
+  q: z.string().optional(),
+  type: NodeTypeSchema.optional(),
+  status: NodeStatusSchema.optional(),
+  activation_min: z.string().min(1).pipe(z.coerce.number()).optional(),
+  activation_max: z.string().min(1).pipe(z.coerce.number()).optional(),
+  created_after: z.string().optional(),
+  created_before: z.string().optional(),
+  updated_after: z.string().optional(),
+  updated_before: z.string().optional(),
+  tags: z.string().transform(v => v.split(',').filter(Boolean)).optional(),
+  sort: SortFieldSchema.optional(),
+  order: SortOrderSchema.optional(),
+  limit: z.string().min(1).pipe(z.coerce.number().int().positive()).optional(),
+  offset: z.string().min(1).pipe(z.coerce.number().int().nonnegative()).optional(),
+});
+
+export const RelatedSearchQuerySchema = z.object({
+  depth: z.string().min(1).pipe(z.coerce.number().int().positive()).optional(),
+});
+
+export const RecentSearchQuerySchema = z.object({
+  limit: z.string().min(1).pipe(z.coerce.number().int().positive()).optional(),
+});
+
 // --- Validation error hook ---
 
 // Returns first zod error message as { error: "..." } with 400 status.
