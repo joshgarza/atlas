@@ -42,6 +42,14 @@ function makeVoyageResponse(seed: number) {
   };
 }
 
+function cosineSimilarity(a: Float32Array, b: Float32Array): number {
+  let dot = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+  }
+  return dot;
+}
+
 function makeNode(overrides: Partial<Parameters<typeof createNode>[0]> = {}) {
   return createNode({
     type: 'concept',
@@ -214,6 +222,37 @@ describe('semanticSearch', () => {
     const results = await semanticSearch('tagged');
     expect(results.length).toBe(1);
     expect(results[0].tags).toEqual(['alpha', 'beta']);
+  });
+
+  it('preserves vector-ranked order while hydrating tags in bulk', async () => {
+    const nodes = [
+      makeNode({ title: 'First', content: 'Content', tags: ['zeta'] }),
+      makeNode({ title: 'Second', content: 'Content', tags: ['beta', 'alpha'] }),
+      makeNode({ title: 'Third', content: 'Content', tags: ['delta'] }),
+    ];
+    const embeddings = [makeEmbedding(5), makeEmbedding(1), makeEmbedding(50)];
+    const queryEmbedding = makeEmbedding(1);
+
+    for (let i = 0; i < nodes.length; i++) {
+      storeEmbedding(nodes[i].id, embeddings[i]);
+    }
+
+    mockedGenerateEmbedding.mockResolvedValue(queryEmbedding);
+
+    const expectedOrder = nodes
+      .map((node, index) => ({
+        id: node.id,
+        similarity: cosineSimilarity(embeddings[index], queryEmbedding),
+      }))
+      .sort((a, b) => b.similarity - a.similarity)
+      .map((node) => node.id);
+
+    const results = await semanticSearch('ordered', 3);
+
+    expect(results.map((result) => result.id)).toEqual(expectedOrder);
+    expect(results.find((result) => result.id === nodes[0].id)?.tags).toEqual(['zeta']);
+    expect(results.find((result) => result.id === nodes[1].id)?.tags).toEqual(['alpha', 'beta']);
+    expect(results.find((result) => result.id === nodes[2].id)?.tags).toEqual(['delta']);
   });
 });
 
