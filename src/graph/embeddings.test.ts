@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getDb } from '../db/connection.js';
 import { createNode, updateNode } from './nodes.js';
-import { storeEmbedding, embedNode, embedNodeAsync, backfillEmbeddings } from './embeddings.js';
+import { EMBEDDINGS_UNAVAILABLE_MESSAGE, isEmbeddingAvailable, storeEmbedding, embedNode, embedNodeAsync, backfillEmbeddings } from './embeddings.js';
 import { semanticSearch } from './query.js';
 
 // Mock generateEmbedding for cross-module consumers (semanticSearch in query.ts)
@@ -77,6 +77,25 @@ describe('storeEmbedding', () => {
   });
 });
 
+describe('isEmbeddingAvailable', () => {
+  afterEach(() => {
+    delete process.env.VOYAGE_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+  });
+
+  it('returns true when VOYAGE_API_KEY is set', () => {
+    process.env.VOYAGE_API_KEY = 'voyage-key';
+
+    expect(isEmbeddingAvailable()).toBe(true);
+  });
+
+  it('does not treat ANTHROPIC_API_KEY as embedding availability', () => {
+    process.env.ANTHROPIC_API_KEY = 'anthropic-key';
+
+    expect(isEmbeddingAvailable()).toBe(false);
+  });
+});
+
 describe('embedNode (with fetch mock)', () => {
   const originalFetch = globalThis.fetch;
 
@@ -87,6 +106,7 @@ describe('embedNode (with fetch mock)', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     delete process.env.VOYAGE_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
   });
 
   it('generates and stores embedding for a node', async () => {
@@ -106,11 +126,22 @@ describe('embedNode (with fetch mock)', () => {
     const row = db.prepare('SELECT node_id FROM node_embeddings WHERE node_id = ?').get(node.id);
     expect(row).toBeDefined();
   });
+
+  it('requires VOYAGE_API_KEY and does not fall back to ANTHROPIC_API_KEY', async () => {
+    delete process.env.VOYAGE_API_KEY;
+    process.env.ANTHROPIC_API_KEY = 'anthropic-key';
+    globalThis.fetch = vi.fn() as typeof fetch;
+
+    const node = makeNode({ title: 'Voyage only', content: 'No Anthropic fallback' });
+
+    await expect(embedNode(node.id, node.title, node.content)).rejects.toThrow(EMBEDDINGS_UNAVAILABLE_MESSAGE);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
 });
 
 describe('embedNodeAsync', () => {
   it('does not throw when embedding generation fails', () => {
-    // No API key set, so isEmbeddingAvailable() returns false and it silently skips
+    // No Voyage key set, so isEmbeddingAvailable() returns false and it silently skips
     delete process.env.VOYAGE_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
 
@@ -261,18 +292,22 @@ describe('backfillEmbeddings (with fetch mock)', () => {
 });
 
 describe('graceful degradation', () => {
-  it('createNode succeeds even when embedding API key is missing', () => {
+  it('createNode succeeds when VOYAGE_API_KEY is missing', () => {
     delete process.env.VOYAGE_API_KEY;
-    delete process.env.ANTHROPIC_API_KEY;
+    process.env.ANTHROPIC_API_KEY = 'anthropic-key';
 
-    const node = createNode({
-      type: 'concept',
-      title: 'No API Key',
-      content: 'Should still create',
-      granularity: 'standard',
-    });
+    try {
+      const node = createNode({
+        type: 'concept',
+        title: 'No API Key',
+        content: 'Should still create',
+        granularity: 'standard',
+      });
 
-    expect(node.id).toBeDefined();
-    expect(node.title).toBe('No API Key');
+      expect(node.id).toBeDefined();
+      expect(node.title).toBe('No API Key');
+    } finally {
+      delete process.env.ANTHROPIC_API_KEY;
+    }
   });
 });

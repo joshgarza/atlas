@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { getDb, closeDb } from '../../db/connection.js';
 import { stopScheduler } from '../../archivist/scheduler.js';
+import { EMBEDDINGS_UNAVAILABLE_MESSAGE } from '../../graph/embeddings.js';
 import app from '../app.js';
 
 // --- Helpers ---
@@ -346,6 +347,22 @@ describe('GET /search', () => {
     assert.equal(res.status, 200);
     const nodes = await res.json();
     assert.ok(nodes.length <= 1);
+  });
+});
+
+describe('GET /search/semantic', () => {
+  it('requires VOYAGE_API_KEY even if ANTHROPIC_API_KEY is set', async () => {
+    delete process.env.VOYAGE_API_KEY;
+    process.env.ANTHROPIC_API_KEY = 'anthropic-key';
+
+    try {
+      const res = await get('/search/semantic?q=TypeScript');
+      assert.equal(res.status, 503);
+      const body = await res.json();
+      assert.equal(body.error, EMBEDDINGS_UNAVAILABLE_MESSAGE);
+    } finally {
+      delete process.env.ANTHROPIC_API_KEY;
+    }
   });
 });
 

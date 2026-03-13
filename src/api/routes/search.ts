@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { searchNodes, getRelatedNodes, getRecentNodes, advancedSearch, semanticSearch } from '../../graph/query.js';
+import { EMBEDDINGS_UNAVAILABLE_MESSAGE, isEmbeddingAvailable } from '../../graph/embeddings.js';
 import { SearchQuerySchema, AdvancedSearchQuerySchema, RelatedSearchQuerySchema, RecentSearchQuerySchema, validationHook } from '../schemas.js';
 
 const app = new Hono();
@@ -51,6 +52,10 @@ app.get('/search/semantic', async (c) => {
     const limit = limitStr ? parseInt(limitStr, 10) : undefined;
     if (limit !== undefined && (isNaN(limit) || limit < 1)) {
       return c.json({ error: 'Invalid limit parameter' }, 400);
+    }
+
+    if (!isEmbeddingAvailable()) {
+      return c.json({ error: EMBEDDINGS_UNAVAILABLE_MESSAGE }, 503);
     }
 
     const results = await semanticSearch(q, limit);
