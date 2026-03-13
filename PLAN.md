@@ -24,7 +24,7 @@ Atlas is the foundational memory layer for a personal assistant system. Every ot
 
 ### Storage
 
-SQLite — single file, zero-config, portable. FTS5 for text search. sqlite-vec for future embedding-based semantic search.
+SQLite — single file, zero-config, portable. FTS5 for text search. sqlite-vec powers the current backend semantic-search path, which today is a full-table cosine scan over `node_embeddings` rather than an indexed KNN query. That is acceptable at the current graph size, but should be revisited when Atlas reaches roughly 10,000 embedded nodes or sqlite-vec adds a mature cosine KNN path.
 
 ---
 
@@ -42,8 +42,10 @@ SQLite — single file, zero-config, portable. FTS5 for text search. sqlite-vec 
 - [x] Edge CRUD with node validation (`src/graph/edges.ts`)
 - [x] Activation model — recency-weighted bumps + periodic decay (`src/graph/activation.ts`)
 - [x] FTS5 search, BFS graph traversal, recent nodes (`src/graph/query.ts`)
+- [x] Backend semantic search endpoint (`GET /search/semantic`) backed by sqlite-vec embeddings
 - [x] Append-only event log (`src/events.ts`)
 - [x] Hono HTTP server with all endpoints (`src/api/`)
+- [x] Manual embeddings backfill endpoint (`POST /archivist/backfill-embeddings`)
 - [x] Bare repo + worktree workflow with branch protection
 - [x] GitHub remote
 
@@ -55,10 +57,15 @@ SQLite — single file, zero-config, portable. FTS5 for text search. sqlite-vec 
 - Edge creation with node validation
 - FTS5 search finds content
 - Graph traversal finds related nodes
+- Semantic search returns similarity-ranked nodes from stored embeddings
 - Event log append-only
 - Archivist decay sweep
 - Pre-commit hook blocks direct commits to main
 - Claude Code hook blocks Edit/Write on main worktree
+
+### Current semantic-search status
+
+Semantic search is implemented in the backend and operational for manual workflows, but it is not yet presented as a polished end-user feature. `/search/semantic` and `/archivist/backfill-embeddings` exist today, while automation, UX, and broader product framing still lag behind the implementation.
 
 ---
 
