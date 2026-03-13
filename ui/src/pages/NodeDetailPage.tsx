@@ -1,17 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getNode, getNodeHistory, getNodeEdges, ApiError } from '../api/client';
-import type { Node, NodeHistory, Edge } from '../api/types';
-
-interface EdgeWithNode extends Edge {
-  otherNode: { id: string; title: string } | null;
-}
+import type { Node, NodeHistory, EdgeWithOtherNode } from '../api/types';
 
 export default function NodeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [node, setNode] = useState<Node | null>(null);
   const [history, setHistory] = useState<NodeHistory[]>([]);
-  const [edges, setEdges] = useState<EdgeWithNode[]>([]);
+  const [edges, setEdges] = useState<EdgeWithOtherNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -24,25 +20,10 @@ export default function NodeDetailPage() {
     setNotFound(false);
 
     Promise.all([getNode(id), getNodeHistory(id), getNodeEdges(id)])
-      .then(async ([nodeData, historyData, edgesData]) => {
+      .then(([nodeData, historyData, edgesData]) => {
         setNode(nodeData);
         setHistory(historyData);
-
-        const otherIds = [...new Set(edgesData.map((edge) =>
-          edge.source_id === id ? edge.target_id : edge.source_id
-        ))];
-        const results = await Promise.allSettled(otherIds.map((nid) => getNode(nid, true)));
-        const nodeMap = new Map<string, { id: string; title: string }>();
-        results.forEach((result, i) => {
-          if (result.status === 'fulfilled') {
-            nodeMap.set(otherIds[i], { id: result.value.id, title: result.value.title });
-          }
-        });
-        const edgesWithNodes: EdgeWithNode[] = edgesData.map((edge) => {
-          const otherId = edge.source_id === id ? edge.target_id : edge.source_id;
-          return { ...edge, otherNode: nodeMap.get(otherId) ?? null };
-        });
-        setEdges(edgesWithNodes);
+        setEdges(edgesData);
       })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 404) {
@@ -135,8 +116,8 @@ export default function NodeDetailPage() {
               {edges.map((edge) => (
                 <tr key={edge.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <td style={{ padding: '0.5rem 0.75rem' }}>
-                    {edge.otherNode ? (
-                      <Link to={`/nodes/${edge.otherNode.id}`}>{edge.otherNode.title}</Link>
+                    {edge.other_node ? (
+                      <Link to={`/nodes/${edge.other_node.id}`}>{edge.other_node.title}</Link>
                     ) : (
                       <span style={{ color: 'var(--color-text-muted)' }}>Unknown node</span>
                     )}

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { createNode, getNode, updateNode, listNodes, countNodes, getNodeHistory } from '../../graph/nodes.js';
-import { getEdgesByNode } from '../../graph/edges.js';
+import { getEdgesByNodeWithOtherNode } from '../../graph/edges.js';
 import { CreateNodeInputSchema, UpdateNodeInputSchema, NodeListQuerySchema, NodeGetQuerySchema, validationHook } from '../schemas.js';
 
 const app = new Hono();
@@ -80,7 +80,7 @@ app.get('/nodes/:id/history', (c) => {
 app.get('/nodes/:id/edges', (c) => {
   try {
     const id = c.req.param('id');
-    const edges = getEdgesByNode(id);
+    const edges = getEdgesByNodeWithOtherNode(id);
     return c.json(edges);
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
