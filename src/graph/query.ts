@@ -242,16 +242,39 @@ export async function semanticSearch(query: string, limit = 10): Promise<Semanti
     )
     .all(queryBuf, limit) as Array<{ node_id: string; distance: number }>;
 
-  const results: SemanticSearchResult[] = [];
-  for (const row of rows) {
-    const nodeRow = db.prepare('SELECT * FROM nodes WHERE id = ?').get(row.node_id) as Record<string, unknown> | undefined;
-    if (nodeRow) {
-      const nodeWithTags = toNodeWithTags(nodeRow);
-      // vec_distance_cosine returns [0, 2]: 0=identical, 2=opposite
-      // cosine similarity = 1 - cosine_distance (range [-1, 1])
-      results.push({ ...nodeWithTags, similarity: 1 - row.distance });
-    }
+  if (rows.length === 0) return [];
+
+  const nodeIds = rows.map((row) => row.node_id);
+  const placeholders = nodeIds.map(() => '?').join(', ');
+
+  const nodeRows = db
+    .prepare(`SELECT * FROM nodes WHERE id IN (${placeholders})`)
+    .all(...nodeIds) as Record<string, unknown>[];
+
+  const tagRows = db
+    .prepare(`SELECT node_id, tag FROM node_tags WHERE node_id IN (${placeholders}) ORDER BY node_id, tag`)
+    .all(...nodeIds) as Array<{ node_id: string; tag: string }>;
+
+  const tagsByNodeId = new Map<string, string[]>();
+  for (const row of tagRows) {
+    const tags = tagsByNodeId.get(row.node_id) ?? [];
+    tags.push(row.tag);
+    tagsByNodeId.set(row.node_id, tags);
   }
 
-  return results;
+  const nodesById = new Map(
+    nodeRows.map((row) => {
+      const node = parseNodeRow(row);
+      return [node.id, { ...node, tags: tagsByNodeId.get(node.id) ?? [] }] satisfies [string, NodeWithTags];
+    })
+  );
+
+  return rows.flatMap((row) => {
+    const node = nodesById.get(row.node_id);
+    if (!node) return [];
+
+    // vec_distance_cosine returns [0, 2]: 0=identical, 2=opposite
+    // cosine similarity = 1 - cosine_distance (range [-1, 1])
+    return [{ ...node, similarity: 1 - row.distance }];
+  });
 }
