@@ -78,6 +78,14 @@ export const EdgeListQuerySchema = z.object({
   offset: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().nonnegative()).optional(),
 });
 
+const ULID_REGEX = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
+
+export const EdgeIdParamSchema = z.object({
+  id: z.string().refine((value) => ULID_REGEX.test(value), {
+    message: 'Invalid edge id',
+  }),
+});
+
 export const SearchQuerySchema = z.object({
   q: z.string({ error: 'Query parameter "q" is required' }).min(1, 'Query parameter "q" is required'),
   limit: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
