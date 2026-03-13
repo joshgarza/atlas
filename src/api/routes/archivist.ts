@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { runArchivist, getArchivistStatus, runDeduplication } from '../../archivist/index.js';
 import { stopScheduler, updateScheduler, getSchedulerStatus } from '../../archivist/scheduler.js';
-import { backfillEmbeddings } from '../../graph/embeddings.js';
+import { backfillEmbeddings, isEmbeddingAvailable } from '../../graph/embeddings.js';
 import { UpdateScheduleInputSchema, validationHook } from '../schemas.js';
 
 const app = new Hono();
@@ -59,6 +59,13 @@ app.put('/archivist/schedule', zValidator('json', UpdateScheduleInputSchema, val
 // Backfill embeddings for nodes missing them
 app.post('/archivist/backfill-embeddings', async (c) => {
   try {
+    if (!isEmbeddingAvailable()) {
+      return c.json(
+        { error: 'Semantic search embeddings are not configured' },
+        503
+      );
+    }
+
     const result = await backfillEmbeddings();
     return c.json(result);
   } catch (err) {
