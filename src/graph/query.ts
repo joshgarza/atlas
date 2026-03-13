@@ -223,7 +223,7 @@ export function getRecentNodes(limit = 20): NodeWithTags[] {
 
 /**
  * Semantic search over nodes using vector embeddings.
- * Embeds the query string via Voyage API, then performs KNN search via sqlite-vec.
+ * Embeds the query string via Voyage API, then scores every stored embedding via cosine distance.
  * Returns nodes ranked by cosine similarity.
  */
 export async function semanticSearch(query: string, limit = 10): Promise<SemanticSearchResult[]> {
@@ -235,6 +235,10 @@ export async function semanticSearch(query: string, limit = 10): Promise<Semanti
 
   const rows = db
     .prepare(
+      // Current sqlite-vec usage is a scalar cosine-distance function over the whole table,
+      // so this is a full scan of node_embeddings rather than an indexed KNN lookup.
+      // That is acceptable at current scale, but revisit once the graph has roughly 10k+
+      // embedded nodes or sqlite-vec adds a production-ready cosine KNN path.
       `SELECT node_id, vec_distance_cosine(embedding, ?) as distance
        FROM node_embeddings
        ORDER BY distance

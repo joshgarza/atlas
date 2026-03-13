@@ -22,6 +22,7 @@ Two agent roles operate on the system:
 - **TypeScript** + **Hono** (HTTP framework)
 - **SQLite** via `better-sqlite3` (single-file database, WAL mode)
 - **FTS5** for full-text search
+- **sqlite-vec** for embedding storage and backend semantic search
 - **ULIDs** for time-ordered IDs
 
 ## Quick Start
@@ -60,12 +61,22 @@ POST   /events                 Log a raw event
 # Search
 GET    /search?q=...           Full-text search across nodes
 GET    /search/related/:id     Find related nodes (graph traversal)
+GET    /search/semantic        Semantic search over embedded nodes (?q=...&limit=...)
 GET    /search/recent          Recently accessed nodes
 
 # Maintenance
 POST   /archivist/run          Trigger activation decay
+POST   /archivist/backfill-embeddings  Generate embeddings for nodes that are missing them
 GET    /health                 Health check
 ```
+
+## Semantic Search Status
+
+Semantic search is present in the backend today via `GET /search/semantic`, and embeddings can be backfilled manually via `POST /archivist/backfill-embeddings`.
+
+The current implementation is intentionally backend-first. `semanticSearch()` ranks results by running `vec_distance_cosine()` across the full `node_embeddings` table, so it is a full-table scan rather than an indexed KNN query. That trade-off is acceptable at the current graph size, but it should be revisited when Atlas reaches roughly 10,000 embedded nodes or sqlite-vec ships a mature cosine KNN path.
+
+Operationally, this is still a manual capability rather than a polished end-user feature. Embedding generation and backfill exist for backend workflows, while the README and PLAN now reflect that the UX and automation around semantic search are still in progress.
 
 ## Obsidian Collector (Windows)
 
