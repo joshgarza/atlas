@@ -349,6 +349,15 @@ describe('GET /search', () => {
   });
 });
 
+describe('GET /search/semantic', () => {
+  it('returns 400 for non-numeric limit', async () => {
+    const res = await get('/search/semantic?q=TypeScript&limit=abc');
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error);
+  });
+});
+
 describe('GET /search/related/:id', () => {
   it('returns related nodes via graph traversal', async () => {
     const res = await get(`/search/related/${nodeIdA}`);

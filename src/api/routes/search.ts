@@ -40,19 +40,9 @@ app.get('/search/related/:id', zValidator('query', RelatedSearchQuerySchema, val
 });
 
 // Semantic search via vector embeddings
-app.get('/search/semantic', async (c) => {
+app.get('/search/semantic', zValidator('query', SearchQuerySchema, validationHook), async (c) => {
   try {
-    const q = c.req.query('q');
-    if (!q) {
-      return c.json({ error: 'Query parameter "q" is required' }, 400);
-    }
-
-    const limitStr = c.req.query('limit');
-    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
-    if (limit !== undefined && (isNaN(limit) || limit < 1)) {
-      return c.json({ error: 'Invalid limit parameter' }, 400);
-    }
-
+    const { q, limit } = c.req.valid('query');
     const results = await semanticSearch(q, limit);
     return c.json(results);
   } catch (err) {

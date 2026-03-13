@@ -3,6 +3,18 @@ import type { Context } from 'hono';
 import type { Hook } from '@hono/zod-validator';
 import { MIN_INTERVAL_MS } from '../archivist/scheduler.js';
 
+const parseNumericQueryParam = (value: unknown) => {
+  if (typeof value === 'string' && value.length > 0) {
+    return Number(value);
+  }
+
+  return value;
+};
+
+const positiveIntQueryParam = z.preprocess(parseNumericQueryParam, z.number().int().positive());
+const nonnegativeIntQueryParam = z.preprocess(parseNumericQueryParam, z.number().int().nonnegative());
+const numberQueryParam = z.preprocess(parseNumericQueryParam, z.number());
+
 // --- Enum schemas ---
 
 export const NodeTypeSchema = z.enum(['concept', 'entity', 'preference', 'goal', 'habit', 'observation']);
@@ -64,8 +76,8 @@ export const CreateEventInputSchema = z.object({
 export const NodeListQuerySchema = z.object({
   type: NodeTypeSchema.optional(),
   status: NodeStatusSchema.optional(),
-  limit: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
-  offset: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().nonnegative()).optional(),
+  limit: positiveIntQueryParam.optional(),
+  offset: nonnegativeIntQueryParam.optional(),
 });
 
 export const NodeGetQuerySchema = z.object({
@@ -74,21 +86,21 @@ export const NodeGetQuerySchema = z.object({
 
 export const EdgeListQuerySchema = z.object({
   type: EdgeTypeSchema.optional(),
-  limit: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
-  offset: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().nonnegative()).optional(),
+  limit: positiveIntQueryParam.optional(),
+  offset: nonnegativeIntQueryParam.optional(),
 });
 
 export const SearchQuerySchema = z.object({
   q: z.string({ error: 'Query parameter "q" is required' }).min(1, 'Query parameter "q" is required'),
-  limit: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
+  limit: positiveIntQueryParam.optional(),
 });
 
 export const AdvancedSearchQuerySchema = z.object({
   q: z.string().optional(),
   type: NodeTypeSchema.optional(),
   status: NodeStatusSchema.optional(),
-  activation_min: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number()).optional(),
-  activation_max: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number()).optional(),
+  activation_min: numberQueryParam.optional(),
+  activation_max: numberQueryParam.optional(),
   created_after: z.string().optional(),
   created_before: z.string().optional(),
   updated_after: z.string().optional(),
@@ -96,16 +108,16 @@ export const AdvancedSearchQuerySchema = z.object({
   tags: z.string().transform(v => v.split(',').filter(Boolean)).optional(),
   sort: SortFieldSchema.optional(),
   order: SortOrderSchema.optional(),
-  limit: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
-  offset: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().nonnegative()).optional(),
+  limit: positiveIntQueryParam.optional(),
+  offset: nonnegativeIntQueryParam.optional(),
 });
 
 export const RelatedSearchQuerySchema = z.object({
-  depth: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
+  depth: positiveIntQueryParam.optional(),
 });
 
 export const RecentSearchQuerySchema = z.object({
-  limit: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
+  limit: positiveIntQueryParam.optional(),
 });
 
 // --- Validation error hook ---
