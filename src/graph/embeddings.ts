@@ -3,22 +3,23 @@ import { getDb } from '../db/connection.js';
 const VOYAGE_API_URL = 'https://api.voyageai.com/v1/embeddings';
 const EMBEDDING_MODEL = 'voyage-3';
 const EMBEDDING_DIMENSIONS = 1024;
+export const EMBEDDINGS_UNAVAILABLE_MESSAGE = 'VOYAGE_API_KEY is required for semantic search embeddings';
 
 /** Check if embedding generation is available (API key is set). */
 export function isEmbeddingAvailable(): boolean {
-  return !!(process.env.VOYAGE_API_KEY || process.env.ANTHROPIC_API_KEY);
+  return !!process.env.VOYAGE_API_KEY;
 }
 
-/** Get the API key for Voyage, preferring VOYAGE_API_KEY over ANTHROPIC_API_KEY. */
+/** Get the API key for Voyage embeddings. */
 function getApiKey(): string | undefined {
-  return process.env.VOYAGE_API_KEY || process.env.ANTHROPIC_API_KEY;
+  return process.env.VOYAGE_API_KEY;
 }
 
 /** Generate an embedding vector for the given text via the Voyage API. */
 export async function generateEmbedding(text: string): Promise<Float32Array> {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error('No embedding API key set (VOYAGE_API_KEY or ANTHROPIC_API_KEY)');
+    throw new Error(EMBEDDINGS_UNAVAILABLE_MESSAGE);
   }
 
   const response = await fetch(VOYAGE_API_URL, {
