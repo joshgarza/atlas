@@ -1,6 +1,6 @@
 import { ulid } from 'ulid';
 import { getDb } from '../db/connection.js';
-import type { Edge, CreateEdgeInput, UpdateEdgeInput, EdgeType } from '../types.js';
+import type { Edge, EdgeWithOtherNode, CreateEdgeInput, UpdateEdgeInput, EdgeType } from '../types.js';
 
 /** Parse a raw DB row into an Edge, handling JSON metadata. */
 function parseEdgeRow(row: Record<string, unknown>): Edge {
@@ -49,6 +49,36 @@ export function getEdgesByNode(nodeId: string): Edge[] {
     .all(nodeId, nodeId) as Record<string, unknown>[];
 
   return rows.map(parseEdgeRow);
+}
+
+export function getEdgesByNodeWithOtherNode(nodeId: string): EdgeWithOtherNode[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT
+         edges.*,
+         other.id AS other_node_id,
+         other.title AS other_node_title
+       FROM edges
+       LEFT JOIN nodes AS other
+         ON other.id = CASE
+           WHEN edges.source_id = ? THEN edges.target_id
+           ELSE edges.source_id
+         END
+       WHERE edges.source_id = ? OR edges.target_id = ?
+       ORDER BY edges.created_at DESC`
+    )
+    .all(nodeId, nodeId, nodeId) as Record<string, unknown>[];
+
+  return rows.map((row) => ({
+    ...parseEdgeRow(row),
+    other_node: row.other_node_id
+      ? {
+          id: row.other_node_id as string,
+          title: row.other_node_title as string,
+        }
+      : null,
+  }));
 }
 
 export function getEdge(id: string): Edge | null {

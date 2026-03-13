@@ -289,6 +289,10 @@ describe('GET /nodes/:id/edges', () => {
     assert.ok(Array.isArray(edges));
     assert.equal(edges.length, 1);
     assert.equal(edges[0].id, edgeId);
+    assert.deepEqual(edges[0].other_node, {
+      id: nodeIdB,
+      title: 'Hono Framework',
+    });
   });
 
   it('returns edges when node is the target', async () => {
@@ -297,6 +301,10 @@ describe('GET /nodes/:id/edges', () => {
     const edges = await res.json();
     assert.equal(edges.length, 1);
     assert.equal(edges[0].id, edgeId);
+    assert.deepEqual(edges[0].other_node, {
+      id: nodeIdA,
+      title: 'TypeScript Language',
+    });
   });
 });
 

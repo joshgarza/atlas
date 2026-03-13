@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createNode } from './nodes.js';
-import { createEdge, getEdgesByNode, getEdge } from './edges.js';
+import { createEdge, getEdgesByNode, getEdgesByNodeWithOtherNode, getEdge } from './edges.js';
 
 function makeTwoNodes() {
   const a = createNode({ type: 'concept', title: 'A', content: 'Node A', granularity: 'standard' });
@@ -67,6 +67,26 @@ describe('getEdgesByNode', () => {
     const { a } = makeTwoNodes();
     const edges = getEdgesByNode(a.id);
     expect(edges).toEqual([]);
+  });
+});
+
+describe('getEdgesByNodeWithOtherNode', () => {
+  it('includes the opposite node summary for each edge', () => {
+    const a = createNode({ type: 'concept', title: 'A', content: 'A', granularity: 'standard' });
+    const b = createNode({ type: 'concept', title: 'B', content: 'B', granularity: 'standard' });
+    const c = createNode({ type: 'concept', title: 'C', content: 'C', granularity: 'standard' });
+
+    createEdge({ source_id: a.id, target_id: b.id, type: 'related_to' });
+    createEdge({ source_id: c.id, target_id: a.id, type: 'supports' });
+
+    const edges = getEdgesByNodeWithOtherNode(a.id);
+    expect(edges).toHaveLength(2);
+    expect(edges.map((edge) => edge.other_node)).toEqual(
+      expect.arrayContaining([
+        { id: b.id, title: 'B' },
+        { id: c.id, title: 'C' },
+      ])
+    );
   });
 });
 
