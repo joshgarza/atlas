@@ -266,6 +266,41 @@ describe('POST /edges', () => {
 });
 
 describe('GET /edges', () => {
+  it('filters by edge type', async () => {
+    const nodeCRes = await post('/nodes', {
+      type: 'concept',
+      title: 'Validation Source',
+      content: 'Created for edge filter coverage',
+      granularity: 'standard',
+    });
+    assert.equal(nodeCRes.status, 201);
+    const nodeC = await nodeCRes.json();
+
+    const nodeDRes = await post('/nodes', {
+      type: 'concept',
+      title: 'Validation Target',
+      content: 'Created for edge filter coverage',
+      granularity: 'standard',
+    });
+    assert.equal(nodeDRes.status, 201);
+    const nodeD = await nodeDRes.json();
+
+    const supportEdgeRes = await post('/edges', {
+      source_id: nodeC.id,
+      target_id: nodeD.id,
+      type: 'supports',
+    });
+    assert.equal(supportEdgeRes.status, 201);
+
+    const res = await get('/edges?type=related_to');
+    assert.equal(res.status, 200);
+    const edges = await res.json();
+    assert.ok(Array.isArray(edges));
+    assert.equal(edges.length, 1);
+    assert.equal(edges[0].id, edgeId);
+    assert.equal(edges[0].type, 'related_to');
+  });
+
   it('rejects invalid edge type', async () => {
     const res = await get('/edges?type=INVALID');
     assert.equal(res.status, 400);
@@ -278,6 +313,33 @@ describe('GET /edges', () => {
     assert.equal(res.status, 400);
     const body = await res.json();
     assert.ok(body.error);
+  });
+});
+
+describe('GET /edges/:id', () => {
+  it('rejects invalid edge ids', async () => {
+    const res = await get('/edges/not-a-ulid');
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.equal(body.error, 'Invalid edge id');
+  });
+});
+
+describe('PUT /edges/:id', () => {
+  it('rejects invalid edge ids', async () => {
+    const res = await put('/edges/not-a-ulid', { type: 'supports' });
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.equal(body.error, 'Invalid edge id');
+  });
+});
+
+describe('DELETE /edges/:id', () => {
+  it('rejects invalid edge ids', async () => {
+    const res = await del('/edges/not-a-ulid');
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.equal(body.error, 'Invalid edge id');
   });
 });
 

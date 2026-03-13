@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { createEdge, getEdge, listEdges, updateEdge, deleteEdge } from '../../graph/edges.js';
-import { CreateEdgeInputSchema, UpdateEdgeInputSchema, EdgeListQuerySchema, validationHook } from '../schemas.js';
+import { CreateEdgeInputSchema, UpdateEdgeInputSchema, EdgeListQuerySchema, EdgeIdParamSchema, validationHook } from '../schemas.js';
 
 const app = new Hono();
 
@@ -17,9 +17,9 @@ app.get('/edges', zValidator('query', EdgeListQuerySchema, validationHook), (c) 
 });
 
 // Get a single edge
-app.get('/edges/:id', (c) => {
+app.get('/edges/:id', zValidator('param', EdgeIdParamSchema, validationHook), (c) => {
   try {
-    const id = c.req.param('id');
+    const { id } = c.req.valid('param');
     const edge = getEdge(id);
 
     if (!edge) {
@@ -44,9 +44,9 @@ app.post('/edges', zValidator('json', CreateEdgeInputSchema, validationHook), as
 });
 
 // Update an edge
-app.put('/edges/:id', zValidator('json', UpdateEdgeInputSchema, validationHook), async (c) => {
+app.put('/edges/:id', zValidator('param', EdgeIdParamSchema, validationHook), zValidator('json', UpdateEdgeInputSchema, validationHook), async (c) => {
   try {
-    const id = c.req.param('id');
+    const { id } = c.req.valid('param');
     const body = c.req.valid('json');
 
     const existing = getEdge(id);
@@ -62,9 +62,9 @@ app.put('/edges/:id', zValidator('json', UpdateEdgeInputSchema, validationHook),
 });
 
 // Delete an edge
-app.delete('/edges/:id', (c) => {
+app.delete('/edges/:id', zValidator('param', EdgeIdParamSchema, validationHook), (c) => {
   try {
-    const id = c.req.param('id');
+    const { id } = c.req.valid('param');
     const deleted = deleteEdge(id);
 
     if (!deleted) {
