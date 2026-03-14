@@ -1,8 +1,10 @@
 // Mirrors server types from src/types.ts
 
-export type NodeType = 'concept' | 'entity' | 'preference' | 'goal' | 'habit' | 'observation';
+export const NODE_TYPES = ['concept', 'entity', 'preference', 'goal', 'habit', 'observation'] as const;
+export type NodeType = (typeof NODE_TYPES)[number];
 export type NodeGranularity = 'broad' | 'standard' | 'detailed';
-export type NodeStatus = 'active' | 'superseded' | 'deprecated';
+export const NODE_STATUSES = ['active', 'superseded', 'deprecated'] as const;
+export type NodeStatus = (typeof NODE_STATUSES)[number];
 export type EdgeType = 'supports' | 'contradicts' | 'derived_from' | 'related_to' | 'supersedes' | 'part_of';
 export type EventType = 'observation' | 'query' | 'mutation' | 'archivist_action';
 
