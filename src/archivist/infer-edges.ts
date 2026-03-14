@@ -3,6 +3,7 @@ import { createEvent } from '../events.js';
 import { createEdge } from '../graph/edges.js';
 import { searchNodes } from '../graph/query.js';
 import type { Node, EdgeType } from '../types.js';
+import { getReasoningProvider, type EdgeProposal } from '../model-providers.js';
 
 export interface InferEdgesResult {
   analyzed: number;
@@ -16,147 +17,6 @@ export interface InferEdgesConfig {
   confidenceThreshold?: number;
   /** Maximum candidate nodes to send per inference call. Default: 10 */
   maxCandidates?: number;
-}
-
-/** A single edge proposal returned by Claude. */
-interface EdgeProposal {
-  target_id: string;
-  type: EdgeType;
-  confidence: number;
-  reason: string;
-}
-
-const VALID_EDGE_TYPES: Set<string> = new Set([
-  'supports', 'contradicts', 'derived_from', 'related_to', 'supersedes', 'part_of',
-]);
-
-/**
- * Call the Anthropic Messages API to infer relationships between a node
- * and a set of candidate nodes.
- */
-async function callClaude(
-  node: Node,
-  candidates: Array<{ id: string; title: string; content: string; type: string }>,
-): Promise<EdgeProposal[]> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return [];
-
-  const prompt = buildPrompt(node, candidates);
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Anthropic API error ${response.status}: ${body}`);
-  }
-
-  const data = (await response.json()) as {
-    content: Array<{ type: string; text?: string }>;
-  };
-
-  const text = data.content.find((b) => b.type === 'text')?.text ?? '';
-  return parseEdgeProposals(text, candidates);
-}
-
-function buildPrompt(
-  node: Node,
-  candidates: Array<{ id: string; title: string; content: string; type: string }>,
-): string {
-  const candidateList = candidates
-    .map(
-      (c) =>
-        `- ID: ${c.id}\n  Title: ${c.title}\n  Type: ${c.type}\n  Content: ${c.content.slice(0, 300)}`,
-    )
-    .join('\n');
-
-  return `You are the Archivist of a personal knowledge graph. Your task is to identify semantic relationships between a new node and existing nodes.
-
-## New node
-- Title: ${node.title}
-- Type: ${node.type}
-- Content: ${node.content.slice(0, 500)}
-
-## Candidate nodes
-${candidateList}
-
-## Edge types
-- supports: the new node provides evidence for or reinforces the candidate
-- contradicts: the new node conflicts with the candidate
-- derived_from: the new node is derived from or builds on the candidate
-- related_to: the nodes share a topic or theme
-- part_of: the new node is a component or subset of the candidate
-
-## Instructions
-Analyze the new node against each candidate. Return ONLY a JSON array of proposed edges. Each edge object must have:
-- "target_id": the candidate node ID
-- "type": one of the edge types above
-- "confidence": a number from 0.0 to 1.0
-- "reason": a brief explanation (one sentence)
-
-Only propose edges where there is a meaningful semantic relationship. If no relationships exist, return an empty array.
-
-Respond with ONLY the JSON array, no other text.`;
-}
-
-/**
- * Parse Claude's response into validated edge proposals.
- * Silently drops malformed entries.
- */
-function parseEdgeProposals(
-  text: string,
-  candidates: Array<{ id: string }>,
-): EdgeProposal[] {
-  const candidateIds = new Set(candidates.map((c) => c.id));
-
-  // Extract JSON array from response (may be wrapped in markdown code fences)
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) return [];
-
-  let parsed: unknown[];
-  try {
-    parsed = JSON.parse(jsonMatch[0]) as unknown[];
-  } catch {
-    return [];
-  }
-
-  if (!Array.isArray(parsed)) return [];
-
-  const proposals: EdgeProposal[] = [];
-  for (const item of parsed) {
-    if (typeof item !== 'object' || item === null) continue;
-    const obj = item as Record<string, unknown>;
-
-    const target_id = obj.target_id;
-    const type = obj.type;
-    const confidence = obj.confidence;
-    const reason = obj.reason;
-
-    if (typeof target_id !== 'string' || !candidateIds.has(target_id)) continue;
-    if (typeof type !== 'string' || !VALID_EDGE_TYPES.has(type)) continue;
-    if (typeof confidence !== 'number' || confidence < 0 || confidence > 1) continue;
-    if (typeof reason !== 'string') continue;
-
-    proposals.push({
-      target_id,
-      type: type as EdgeType,
-      confidence,
-      reason,
-    });
-  }
-
-  return proposals;
 }
 
 /**
@@ -178,7 +38,8 @@ export async function inferEdges(
     skipped: 0,
   };
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const reasoningProvider = getReasoningProvider();
+  if (!reasoningProvider.isAvailable()) {
     result.skipped = nodeIds.length;
     return result;
   }
@@ -237,7 +98,7 @@ export async function inferEdges(
 
     let proposals: EdgeProposal[];
     try {
-      proposals = await callClaude(node, candidates);
+      proposals = await reasoningProvider.inferEdges(node, candidates);
     } catch (err) {
       createEvent({
         type: 'archivist_action',

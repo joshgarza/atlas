@@ -1,54 +1,14 @@
 import { getDb } from '../db/connection.js';
-
-const VOYAGE_API_URL = 'https://api.voyageai.com/v1/embeddings';
-const EMBEDDING_MODEL = 'voyage-3';
-const EMBEDDING_DIMENSIONS = 1024;
+import { getEmbeddingProvider } from '../model-providers.js';
 
 /** Check if embedding generation is available (API key is set). */
 export function isEmbeddingAvailable(): boolean {
-  return !!(process.env.VOYAGE_API_KEY || process.env.ANTHROPIC_API_KEY);
-}
-
-/** Get the API key for Voyage, preferring VOYAGE_API_KEY over ANTHROPIC_API_KEY. */
-function getApiKey(): string | undefined {
-  return process.env.VOYAGE_API_KEY || process.env.ANTHROPIC_API_KEY;
+  return getEmbeddingProvider().isAvailable();
 }
 
 /** Generate an embedding vector for the given text via the Voyage API. */
 export async function generateEmbedding(text: string): Promise<Float32Array> {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('No embedding API key set (VOYAGE_API_KEY or ANTHROPIC_API_KEY)');
-  }
-
-  const response = await fetch(VOYAGE_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: EMBEDDING_MODEL,
-      input: text,
-      output_dimension: EMBEDDING_DIMENSIONS,
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Voyage API error ${response.status}: ${body}`);
-  }
-
-  const data = await response.json() as {
-    data: Array<{ embedding: number[] }>;
-  };
-
-  const embedding = data.data[0]?.embedding;
-  if (!embedding || embedding.length !== EMBEDDING_DIMENSIONS) {
-    throw new Error(`Unexpected embedding dimensions: expected ${EMBEDDING_DIMENSIONS}, got ${embedding?.length ?? 0}`);
-  }
-
-  return new Float32Array(embedding);
+  return getEmbeddingProvider().generate(text);
 }
 
 /** Store an embedding vector for a node in the vec0 table. */

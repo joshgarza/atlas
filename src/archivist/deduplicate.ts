@@ -3,12 +3,9 @@ import { createEvent } from '../events.js';
 import { updateNode } from '../graph/nodes.js';
 import { createEdge, getEdgesByNode } from '../graph/edges.js';
 import { attenuate } from './attenuate.js';
+import { getReasoningProvider, type DuplicatePair } from '../model-providers.js';
 
-export interface DuplicatePair {
-  keepId: string;
-  removeId: string;
-  reason: string;
-}
+export type { DuplicatePair } from '../model-providers.js';
 
 export interface DeduplicationResult {
   candidatesFound: number;
@@ -18,42 +15,8 @@ export interface DeduplicationResult {
 }
 
 /**
- * Call the Anthropic API for semantic similarity analysis.
- * Uses built-in fetch to avoid adding dependencies.
- */
-async function callClaude(prompt: string): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY environment variable is required for deduplication');
-  }
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Claude API error (${response.status}): ${text}`);
-  }
-
-  const data = (await response.json()) as {
-    content: Array<{ type: string; text: string }>;
-  };
-  return data.content[0].text;
-}
-
-/**
- * Send node summaries to Claude to identify semantic duplicates.
+ * Send node summaries to the configured reasoning provider to identify
+ * semantic duplicates.
  * Returns pairs of node IDs that represent the same concept.
  */
 async function findDuplicates(
@@ -65,49 +28,7 @@ async function findDuplicates(
     activation: number;
   }>,
 ): Promise<DuplicatePair[]> {
-  if (nodes.length < 2) return [];
-
-  const summaries = nodes.map((n) => {
-    const snippet =
-      n.content.length > 200 ? n.content.slice(0, 200) + '...' : n.content;
-    return `- [${n.id}] "${n.title}" (type: ${n.type}, activation: ${n.activation.toFixed(2)})\n  Content: ${snippet}`;
-  });
-
-  const prompt = `You are analyzing a knowledge graph for near-duplicate nodes — nodes that represent the same concept but with different phrasing, abbreviations, or minor variations.
-
-Given these nodes:
-${summaries.join('\n')}
-
-Identify pairs that are near-duplicates (same underlying concept, different phrasing). For each pair, choose which node to KEEP (prefer higher activation, more content, or better title) and which to REMOVE (merge into the kept node).
-
-Return ONLY a JSON array. No explanation, no markdown fencing. Example:
-[{"keepId":"abc","removeId":"xyz","reason":"Both describe the same concept"}]
-
-If no duplicates exist, return: []
-
-Important:
-- Only flag true duplicates (same concept, different words). Related but distinct concepts are NOT duplicates.
-- Be conservative — only flag pairs you are confident about.`;
-
-  const response = await callClaude(prompt);
-
-  // Parse JSON from response (handle potential markdown fencing)
-  const cleaned = response
-    .replace(/```json\n?/g, '')
-    .replace(/```\n?/g, '')
-    .trim();
-
-  try {
-    const pairs = JSON.parse(cleaned) as DuplicatePair[];
-    return pairs.filter(
-      (p) =>
-        typeof p.keepId === 'string' &&
-        typeof p.removeId === 'string' &&
-        typeof p.reason === 'string',
-    );
-  } catch {
-    return [];
-  }
+  return getReasoningProvider().findDuplicates(nodes);
 }
 
 /**
@@ -225,13 +146,14 @@ function mergeNodes(keepId: string, removeId: string, reason: string): void {
 /**
  * Run a full deduplication cycle:
  * 1. Fetch all active nodes
- * 2. Use Claude to identify semantic duplicates (beyond FTS matching)
+ * 2. Use the configured reasoning provider to identify semantic duplicates
  * 3. Merge confirmed duplicate pairs
  *
- * Requires ANTHROPIC_API_KEY. Skips gracefully if not set.
+ * Skips gracefully when the configured reasoning provider is unavailable.
  */
 export async function runDeduplication(): Promise<DeduplicationResult> {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const reasoningProvider = getReasoningProvider();
+  if (!reasoningProvider.isAvailable()) {
     return { candidatesFound: 0, mergesPerformed: 0, mergedPairs: [], skipped: true };
   }
 
