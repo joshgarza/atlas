@@ -1,8 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { getDb, closeDb } from '../../db/connection.js';
 import { stopScheduler } from '../../archivist/scheduler.js';
 import app from '../app.js';
@@ -38,7 +37,9 @@ function del(path: string) {
 let tmpDir: string;
 
 before(() => {
-  tmpDir = mkdtempSync(join(tmpdir(), 'atlas-test-'));
+  const testDataRoot = join(process.cwd(), 'data', 'test-tmp');
+  mkdirSync(testDataRoot, { recursive: true });
+  tmpDir = mkdtempSync(join(testDataRoot, 'atlas-test-'));
   getDb(join(tmpDir, 'test.db'));
 });
 
@@ -372,6 +373,22 @@ describe('GET /search/related/:id', () => {
     assert.equal(res.status, 200);
     const nodes = await res.json();
     assert.deepEqual(nodes, []);
+  });
+});
+
+describe('GET /search/semantic', () => {
+  it('returns 400 when q param is missing', async () => {
+    const res = await get('/search/semantic');
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error.includes('"q"'));
+  });
+
+  it('rejects non-numeric limit', async () => {
+    const res = await get('/search/semantic?q=TypeScript&limit=abc');
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error);
   });
 });
 
