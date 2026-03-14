@@ -45,6 +45,15 @@ export interface Edge {
   created_at: string;
 }
 
+export interface EdgeNodeSummary {
+  id: string;
+  title: string;
+}
+
+export interface EdgeWithOtherNode extends Edge {
+  other_node: EdgeNodeSummary | null;
+}
+
 export interface Event {
   id: string;
   type: EventType;
