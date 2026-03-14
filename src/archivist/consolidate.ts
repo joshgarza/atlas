@@ -165,12 +165,12 @@ function consolidateWithFts(
 /**
  * Process unprocessed events from the event log into graph nodes.
  *
- * When ANTHROPIC_API_KEY is set, uses Claude for semantic matching:
+ * When the configured reasoning provider is available, uses semantic matching:
  * - Determines whether events map to existing nodes or create new ones
  * - Auto-generates tags, summaries, and node type classification
  * - Auto-creates edges between related concepts
  *
- * Falls back to FTS title matching when the LLM is unavailable or errors.
+ * Falls back to FTS title matching when reasoning is unavailable or errors.
  */
 export async function consolidate(): Promise<ConsolidateResult> {
   const db = getDb();

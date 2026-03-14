@@ -8,6 +8,7 @@ import { decayActivation } from '../graph/activation.js';
 import { getDb } from '../db/connection.js';
 import { createClaudeCodeConfig } from './claude.js';
 import type { ClaudeCodeConfig } from './claude.js';
+import { getAiProviderConfig, getEmbeddingProvider, getReasoningProvider } from '../model-providers.js';
 
 export { consolidate } from './consolidate.js';
 export { reinforce } from './reinforce.js';
@@ -36,6 +37,16 @@ export interface ArchivistStatus {
   lastRun: ArchivistRunResult | null;
   runCount: number;
   unprocessedEventCount: number;
+  providers: {
+    embedding: {
+      name: string;
+      available: boolean;
+    };
+    reasoning: {
+      name: string;
+      available: boolean;
+    };
+  };
   claudeCode: {
     model: string;
     allowedTools: string[];
@@ -54,8 +65,8 @@ const claudeCodeConfig = createClaudeCodeConfig();
 /**
  * Run a full archivist cycle:
  * 1. Consolidate unprocessed events into graph nodes
- * 2. Infer edges for newly created/updated nodes (via Claude)
- * 3. Deduplicate semantically similar nodes (requires ANTHROPIC_API_KEY)
+ * 2. Infer edges for newly created/updated nodes
+ * 3. Deduplicate semantically similar nodes
  * 4. Run activation decay sweep
  */
 export async function runArchivist(
@@ -107,6 +118,9 @@ export async function runArchivist(
  */
 export function getArchivistStatus(): ArchivistStatus {
   const db = getDb();
+  const providerConfig = getAiProviderConfig();
+  const embeddingProvider = getEmbeddingProvider();
+  const reasoningProvider = getReasoningProvider();
 
   const row = db
     .prepare(
@@ -118,6 +132,16 @@ export function getArchivistStatus(): ArchivistStatus {
     lastRun: lastRunResult,
     runCount,
     unprocessedEventCount: row.count,
+    providers: {
+      embedding: {
+        name: providerConfig.embeddingProvider,
+        available: embeddingProvider.isAvailable(),
+      },
+      reasoning: {
+        name: providerConfig.reasoningProvider,
+        available: reasoningProvider.isAvailable(),
+      },
+    },
     claudeCode: {
       model: claudeCodeConfig.model,
       allowedTools: claudeCodeConfig.allowedTools,
