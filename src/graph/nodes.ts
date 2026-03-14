@@ -16,6 +16,10 @@ export interface NodeWithTags extends Node {
   tags: string[];
 }
 
+interface NodeMutationOptions {
+  deferEmbedding?: boolean;
+}
+
 /** Fetch tags for a node from the node_tags table. */
 export function getNodeTags(db: Database.Database, nodeId: string): string[] {
   const rows = db
@@ -38,7 +42,10 @@ function toNodeWithTags(db: Database.Database, row: Record<string, unknown>): No
   return { ...node, tags: getNodeTags(db, node.id) };
 }
 
-export function createNode(input: CreateNodeInput): NodeWithTags {
+export function createNode(
+  input: CreateNodeInput,
+  options: NodeMutationOptions = {},
+): NodeWithTags {
   const db = getDb();
   const id = ulid();
   const now = new Date().toISOString();
@@ -71,8 +78,10 @@ export function createNode(input: CreateNodeInput): NodeWithTags {
     return toNodeWithTags(db, row);
   })();
 
-  // Fire-and-forget embedding generation
-  embedNodeAsync(node.id, node.title, node.content);
+  if (!options.deferEmbedding) {
+    // Fire-and-forget embedding generation
+    embedNodeAsync(node.id, node.title, node.content);
+  }
 
   return node;
 }
@@ -93,7 +102,11 @@ export function getNode(id: string, peek = false): NodeWithTags | null {
   return toNodeWithTags(db, row);
 }
 
-export function updateNode(id: string, input: UpdateNodeInput): NodeWithTags {
+export function updateNode(
+  id: string,
+  input: UpdateNodeInput,
+  options: NodeMutationOptions = {},
+): NodeWithTags {
   const db = getDb();
 
   const updated = db.transaction(() => {
@@ -176,7 +189,7 @@ export function updateNode(id: string, input: UpdateNodeInput): NodeWithTags {
   })();
 
   // Re-embed if title or content changed
-  if (input.title !== undefined || input.content !== undefined) {
+  if (!options.deferEmbedding && (input.title !== undefined || input.content !== undefined)) {
     embedNodeAsync(updated.id, updated.title, updated.content);
   }
 
