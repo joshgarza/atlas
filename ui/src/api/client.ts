@@ -2,6 +2,7 @@ import type {
   Node,
   NodeHistory,
   Edge,
+  EdgeWithOtherNode,
   Event,
   CreateNodeInput,
   UpdateNodeInput,
@@ -86,8 +87,8 @@ export function getNodeHistory(id: string): Promise<NodeHistory[]> {
   return request<NodeHistory[]>(`/nodes/${id}/history`);
 }
 
-export function getNodeEdges(id: string): Promise<Edge[]> {
-  return request<Edge[]>(`/nodes/${id}/edges`);
+export function getNodeEdges(id: string): Promise<EdgeWithOtherNode[]> {
+  return request<EdgeWithOtherNode[]>(`/nodes/${id}/edges`);
 }
 
 // --- Edges ---
