@@ -1,8 +1,5 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { mkdtempSync, rmSync } from 'node:fs';
 import { getDb, closeDb } from '../../db/connection.js';
 import { stopScheduler } from '../../archivist/scheduler.js';
 import app from '../app.js';
@@ -35,17 +32,13 @@ function del(path: string) {
 
 // --- Test suite ---
 
-let tmpDir: string;
-
 before(() => {
-  tmpDir = mkdtempSync(join(tmpdir(), 'atlas-test-'));
-  getDb(join(tmpDir, 'test.db'));
+  getDb(':memory:');
 });
 
 after(() => {
   stopScheduler();
   closeDb();
-  rmSync(tmpDir, { recursive: true });
 });
 
 // Shared state: IDs created during tests for cross-endpoint verification
