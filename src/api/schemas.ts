@@ -13,6 +13,24 @@ export const EventTypeSchema = z.enum(['observation', 'query', 'mutation', 'arch
 export const SortFieldSchema = z.enum(['activation', 'recency', 'created_at']);
 export const SortOrderSchema = z.enum(['asc', 'desc']);
 
+function parseOptionalQueryNumber(schema: z.ZodNumber) {
+  return z.preprocess((value) => {
+    if (typeof value !== 'string') {
+      return value;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? Number(trimmed) : value;
+  }, schema).optional();
+}
+
+const QueryTagsSchema = z.string().transform((value) =>
+  value
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter((tag) => tag.length > 0)
+);
+
 // --- Input schemas ---
 
 export const CreateNodeInputSchema = z.object({
@@ -64,8 +82,8 @@ export const CreateEventInputSchema = z.object({
 export const NodeListQuerySchema = z.object({
   type: NodeTypeSchema.optional(),
   status: NodeStatusSchema.optional(),
-  limit: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
-  offset: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().nonnegative()).optional(),
+  limit: parseOptionalQueryNumber(z.number().int().positive()),
+  offset: parseOptionalQueryNumber(z.number().int().nonnegative()),
 });
 
 export const NodeGetQuerySchema = z.object({
@@ -74,38 +92,38 @@ export const NodeGetQuerySchema = z.object({
 
 export const EdgeListQuerySchema = z.object({
   type: EdgeTypeSchema.optional(),
-  limit: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
-  offset: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().nonnegative()).optional(),
+  limit: parseOptionalQueryNumber(z.number().int().positive()),
+  offset: parseOptionalQueryNumber(z.number().int().nonnegative()),
 });
 
 export const SearchQuerySchema = z.object({
   q: z.string({ error: 'Query parameter "q" is required' }).min(1, 'Query parameter "q" is required'),
-  limit: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
+  limit: parseOptionalQueryNumber(z.number().int().positive()),
 });
 
 export const AdvancedSearchQuerySchema = z.object({
   q: z.string().optional(),
   type: NodeTypeSchema.optional(),
   status: NodeStatusSchema.optional(),
-  activation_min: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number()).optional(),
-  activation_max: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number()).optional(),
+  activation_min: parseOptionalQueryNumber(z.number()),
+  activation_max: parseOptionalQueryNumber(z.number()),
   created_after: z.string().optional(),
   created_before: z.string().optional(),
   updated_after: z.string().optional(),
   updated_before: z.string().optional(),
-  tags: z.string().transform(v => v.split(',').filter(Boolean)).optional(),
+  tags: QueryTagsSchema.optional(),
   sort: SortFieldSchema.optional(),
   order: SortOrderSchema.optional(),
-  limit: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
-  offset: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().nonnegative()).optional(),
+  limit: parseOptionalQueryNumber(z.number().int().positive()),
+  offset: parseOptionalQueryNumber(z.number().int().nonnegative()),
 });
 
 export const RelatedSearchQuerySchema = z.object({
-  depth: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
+  depth: parseOptionalQueryNumber(z.number().int().positive()),
 });
 
 export const RecentSearchQuerySchema = z.object({
-  limit: z.preprocess((v) => (typeof v === 'string' && v.length > 0 ? Number(v) : v), z.number().int().positive()).optional(),
+  limit: parseOptionalQueryNumber(z.number().int().positive()),
 });
 
 // --- Validation error hook ---
